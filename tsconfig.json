@@ -1,0 +1,33 @@
+{
+	"compilerOptions": {
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"target": "ESNext",
+		"moduleResolution": "node",
+		"removeComments": true,
+		"sourceMap": true,
+		"noImplicitAny": true,
+		"outDir": "dist",
+		"declaration": true,
+		"pretty": true,
+		"esModuleInterop": true,
+		"noImplicitReturns": true,
+		"noUnusedParameters": true,
+		"noUnusedLocals": true,
+		"noFallthroughCasesInSwitch": true,
+		"module": "ESNext",
+		"resolveJsonModule": true,
+		"allowSyntheticDefaultImports": true,
+		"importsNotUsedAsValues": "error",
+	},
+	"exclude": [
+		"node_modules",
+		"dist",
+	],
+	"include": [
+		"./src/**/*",
+	],
+	"ts-node": {
+        "esm": true
+    }
+}
