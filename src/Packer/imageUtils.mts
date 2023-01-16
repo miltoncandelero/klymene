@@ -91,9 +91,11 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 	pipeline.composite(buffersToCompose);
 
 	const outputRects: IPackedSpriteData[] = [];
+	let oversized = false;
 
 	for (const rect of bin.rects) {
 		for (const imageAlias of rect.data.alias) {
+			oversized = oversized || rect.oversized;
 			const originalRectData = rect.data.originalInfo[imageAlias];
 			const packedSprite: IPackedSpriteData = {
 				frame: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
@@ -131,8 +133,12 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 		pipeline,
 		rects: outputRects,
 		metadata: {
-			// todo write this
-			// todo multipack stuff!
+			size: { w: bin.width, h: bin.height },
+			oversized: oversized,
+			scale:1,
+			image: "waaat?",
+			format:"RGBA8888",
+			relatedMultiPacks: ["?????"],
 		},
 	};
 }

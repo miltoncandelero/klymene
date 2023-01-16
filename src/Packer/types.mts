@@ -41,7 +41,6 @@ export interface IPackableSharpImage {
 
 export interface ISharpAtlas {
 	pipeline: Sharp;
-
 	metadata: IAtlasMetadata;
 	rects: IPackedSpriteData[];
 }
@@ -67,12 +66,59 @@ export interface IPackedSpriteData {
 }
 
 export interface IAtlasMetadata {
-	imageName: string;
+	image: string;
 	format: string; // "RGBA8888" ?;
 	scale: number;
 	size: ISize;
 	oversized: boolean;
-
-	// todo multipack
-	// todo normals?
+	// normal_map?: string; ???
+	relatedMultiPacks?: string[];
+	url: string;
+	version: string;
 }
+
+type ExportFormat = "png" | "jpg" | "webp" | "avif" | "base64";
+
+export interface IAtlasInputSettings{
+	textureName: string;
+	width: number;
+	height: number;
+	fixedSize: boolean;
+	powerOfTwo: boolean;
+	sqaure: boolean;
+	padding: number;
+	allowRotation: boolean;
+	detectIdentical: boolean;
+	trimMode: "trim" | "crop" | "none";
+	alphaThreshold: number;
+	removeFileExtension: boolean;
+	prependFolderName: boolean;
+	textureFormat: ExportFormat | ExportFormat[];
+	scale: number;
+	scaleMethod: "nearest" | "cubic" | "mitchell" | "lanczos2" | "lanczos3";
+	outputTemplate: string;
+	url:string;
+	version:string;
+}
+
+export const defaultInputSettings: IAtlasInputSettings = {
+	textureName: "atlas",
+	width: 2048,
+	height: 2048,
+	fixedSize: false,
+	powerOfTwo: true,
+	sqaure: false,
+	padding: 2,
+	allowRotation: true,
+	detectIdentical: true,
+	trimMode: "trim",
+	alphaThreshold: 0,
+	removeFileExtension: false,
+	prependFolderName: true,
+	textureFormat: "png",
+	scale: 1,
+	scaleMethod: "nearest",
+	outputTemplate: "",
+	url: "https://github.com/miltoncandelero/clymene",
+	version: "1.0.0",
+};
