@@ -135,10 +135,7 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 		metadata: {
 			size: { w: bin.width, h: bin.height },
 			oversized: oversized,
-			scale:1,
-			image: "waaat?",
 			format:"RGBA8888",
-			relatedMultiPacks: ["?????"],
 		},
 	};
 }

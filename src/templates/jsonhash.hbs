@@ -39,7 +39,7 @@
     {{#if config.relatedMultiPacks.lenght}}
     "related_multi_packs":[
       {{#each config.relatedMultiPacks}}
-        "{{name}}"{{#unless @last}},{{/unless}}
+        "{{this}}"{{#unless @last}},{{/unless}}
       {{/each}}
     ],
     {{/if}}
