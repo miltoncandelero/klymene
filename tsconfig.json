@@ -20,14 +20,17 @@
 		"allowSyntheticDefaultImports": true,
 		"importsNotUsedAsValues": "error",
 	},
+	"include": [
+		"packages/**/*.ts",
+	],
 	"exclude": [
 		"node_modules",
-		"dist",
-	],
-	"include": [
-		"./src/**/*",
-	],
-	"ts-node": {
-        "esm": true
-    }
+        "**/dist/**",
+        "**/lib/**",
+        "**/types/**",
+        "bundles/**/*.d.ts",
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.hbs",
+	]
 }

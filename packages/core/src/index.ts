@@ -1,5 +1,5 @@
 import path from "path";
-import { pack } from "./Packer/packer.mjs";
+import { pack } from "./packer";
 
 console.log("hello world");
 

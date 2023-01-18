@@ -1,0 +1,62 @@
+{
+  "name": "@klymene/core",
+  "version": "1.0.0",
+  "description": "Mother of (texure) Atlas",
+  "main": "lib/index.js",
+  "module": "lib/index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
+      "types": "./index.d.ts"
+    }
+  },
+  "files": [
+    "lib/",
+    "docs/",
+    "index.d.ts",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/miltoncandelero/klymene.git"
+  },
+  "bugs": {
+    "url": "https://github.com/miltoncandelero/klymene/issues"
+  },
+  "homepage": "https://miltoncandelero.github.io/klymene/",
+  "keywords": [
+
+  ],
+  "author": "Milton Candelero <miltoncandelero@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@klymene/rollup-config": "*"
+  },
+  "scripts": {
+    "start": "ts-node ./src/index.ts",
+    "lint": "run-p lint:*",
+    "lint:src": "eslint src/**/*.ts --fix",
+    "lint:test": "eslint test/**/*.ts --fix",
+    "build": "run-s bundle types",
+    "bundle": "rollup -c rollup.config.mjs --silent",
+    "types": "tsc --outDir compile --project ../../tsconfig.types.json && api-extractor run && rimraf compile",
+    "prebuild": "run-s clean:dist clean:types",
+    "clean": "run-p clean:*",
+    "clean:dist": "rimraf ./dist",
+    "clean:types": "rimraf ./compile",
+    "clean:docs": "rimraf ./docs",
+    "prepublishOnly": "run-s test build doc",
+    "test": "jest",
+    "doc": "typedoc"
+  },
+  "dependencies": {
+    "maxrects-packer": "^2.7.3",
+    "sharp": "^0.31.3",
+    "handlebars": "^4.7.7"
+  }
+}

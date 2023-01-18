@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import { Bin, MaxRectsPacker } from "maxrects-packer";
 import sharp from "sharp";
-import { hashImage, packBinAndReleaseMemory, trimAlpha } from "./imageUtils.mjs";
-import type { IAtlasOutputSettings, IPackableSharpImage, ISharpAtlas, ISharpImage } from "./types.mjs";
+import { hashImage, packBinAndReleaseMemory, trimAlpha } from "./imageUtils";
+import type { IAtlasOutputSettings, IPackableSharpImage, ISharpAtlas, ISharpImage } from "./types";
 
 export interface InputFile {
 	file?: Promise<Buffer>;
@@ -10,11 +10,11 @@ export interface InputFile {
 	tag?: string;
 }
 
-export async function* pack(images: string[] | InputFile[], outputs:IAtlasOutputSettings|IAtlasOutputSettings[]): AsyncGenerator<ISharpAtlas> {
+export async function* pack(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): AsyncGenerator<ISharpAtlas> {
 	if (!Array.isArray(outputs)) {
 		outputs = [outputs];
 	}
-	
+
 	if (images.length === 0) {
 		throw new Error("No images to pack!");
 	}

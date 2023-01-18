@@ -1,8 +1,8 @@
 module.exports = {
     root: true,
     parserOptions: {
-        tsconfigRootDir: "./",
-        project: ['./tsconfig.json', './tsconfig.test.json']
+        project: './tsconfig.json',
+        tsconfigRootDir: __dirname
     },
     extends: [
         "@killabunnies/eslint-config",

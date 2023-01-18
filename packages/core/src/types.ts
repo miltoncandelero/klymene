@@ -1,5 +1,5 @@
 import type { Sharp } from "sharp";
-import type { TEMPLATES } from "../templates";
+import type { TEMPLATES } from "./templates";
 
 export interface ISize {
 	w: number;
@@ -66,7 +66,7 @@ export interface IPackedSpriteData {
 	last: boolean;
 }
 
-export interface IPackMetadata{
+export interface IPackMetadata {
 	format: string; // "RGBA8888" ?;
 	size: ISize;
 	oversized: boolean;
@@ -86,13 +86,13 @@ export interface IAtlasMetadata {
 
 type ExportFormat = "png" | "jpg" | "webp" | "avif" | "base64";
 
-export interface IAtlasOutputSettings{
+export interface IAtlasOutputSettings {
 	// templated with this same object and `multipack` index
-	descriptorFileName: string; 
-	
+	descriptorFileName: string;
+
 	// templated with this same object and `multipack` index
-	textureFileName: string; 
-	
+	textureFileName: string;
+
 	// width of the final atlas
 	width: number;
 
@@ -107,7 +107,7 @@ export interface IAtlasOutputSettings{
 	 * "special" - create an special atlas with only the oversized sprite
 	 */
 	oversizedBehaviour: "ignore" | "error" | "special";
-	
+
 	// if true, the altas will always be the size specified in `width` and `height`, otherwise it could be smaller
 	fixedSize: boolean;
 
@@ -129,7 +129,7 @@ export interface IAtlasOutputSettings{
 	 * "mirror" - repeat the texture in a mirrored way (like copy but nicer for some cases)
 	 * "repeat" - repeat the texture (good for seamless tiles)
 	 */
-	extrudeMethod: 'copy' | 'mirror' | 'repeat',
+	extrudeMethod: "copy" | "mirror" | "repeat";
 
 	// Should the packer rotate the sprite to better accomodate it?
 	allowRotation: boolean;
@@ -165,7 +165,7 @@ export interface IAtlasOutputSettings{
 	 * If true, the sprites will be scaled before packing, which is slower but should result on a better atlas
 	 * If false, the sprites will be scaled after packing, which is faster but might result in a worse atlas (decimal pixels)
 	 */
-	scaleBefore:boolean;
+	scaleBefore: boolean;
 
 	/**
 	 * How to scale the sprites
@@ -181,10 +181,10 @@ export interface IAtlasOutputSettings{
 	outputTemplate: keyof typeof TEMPLATES;
 
 	// metadata for the descriptor file
-	url:string;
+	url: string;
 
 	// metadata for the descriptor file
-	version:string;
+	version: string;
 }
 
 export const defaultInputSettings: IAtlasOutputSettings = {

@@ -1,4 +1,4 @@
-import type { IPackableSharpImage, IPackedSpriteData, ISharpAtlas, ISharpImage } from "./types.mjs";
+import type { IPackableSharpImage, IPackedSpriteData, ISharpAtlas, ISharpImage } from "./types";
 import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
 import sharp, { OverlayOptions } from "sharp";
@@ -135,7 +135,7 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 		metadata: {
 			size: { w: bin.width, h: bin.height },
 			oversized: oversized,
-			format:"RGBA8888",
+			format: "RGBA8888",
 		},
 	};
 }
