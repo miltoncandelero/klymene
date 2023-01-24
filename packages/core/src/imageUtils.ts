@@ -1,7 +1,8 @@
-import type { IPackableSharpImage, IPackedSpriteData, ISharpAtlas, ISharpImage } from "./types";
 import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
 import sharp, { OverlayOptions } from "sharp";
+import type { IPackedSprite } from "./interfaces/output";
+import type { IPackableSharpImage, IPartialAtlas, ISharpImage } from "./interfaces/pack";
 
 // Slow, but we need many comparisons and we needed a hash anyway (in place)
 export async function hashImage(image: IPackableSharpImage): Promise<IPackableSharpImage> {
@@ -50,7 +51,7 @@ export async function trimAlpha(image: ISharpImage): Promise<IPackableSharpImage
 	};
 }
 
-export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Promise<ISharpAtlas> {
+export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Promise<IPartialAtlas> {
 	// Create the pipeline for the final atlas
 	const pipeline = sharp({
 		create: {
@@ -90,14 +91,14 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 	// do the actual pixel blitting
 	pipeline.composite(buffersToCompose);
 
-	const outputRects: IPackedSpriteData[] = [];
+	const outputRects: IPackedSprite[] = [];
 	let oversized = false;
 
 	for (const rect of bin.rects) {
 		for (const imageAlias of rect.data.alias) {
 			oversized = oversized || rect.oversized;
 			const originalRectData = rect.data.originalInfo[imageAlias];
-			const packedSprite: IPackedSpriteData = {
+			const packedSprite: IPackedSprite = {
 				frame: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
 				name: imageAlias,
 				rotated: rect.rot,
@@ -135,7 +136,6 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 		metadata: {
 			size: { w: bin.width, h: bin.height },
 			oversized: oversized,
-			format: "RGBA8888",
 		},
 	};
 }

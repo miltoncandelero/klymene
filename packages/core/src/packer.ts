@@ -2,21 +2,13 @@ import fs from "fs/promises";
 import { Bin, MaxRectsPacker } from "maxrects-packer";
 import sharp from "sharp";
 import { hashImage, packBinAndReleaseMemory, trimAlpha } from "./imageUtils";
-import type { IAtlasOutputSettings, IPackableSharpImage, ISharpAtlas, ISharpImage } from "./types";
+import type { IAtlasOutputSettings, InputFile } from "./interfaces/input";
+import type { IAtlas } from "./interfaces/output";
+import type { ISharpImage, IPackableSharpImage, IPartialAtlas } from "./interfaces/pack";
 
-export interface InputFile {
-	file?: Promise<Buffer>;
-	filename: string;
-	tag?: string;
-}
-
-export async function* pack(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): AsyncGenerator<ISharpAtlas> {
+export async function entryPoint(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): Promise<IAtlas> {
 	if (!Array.isArray(outputs)) {
 		outputs = [outputs];
-	}
-
-	if (images.length === 0) {
-		throw new Error("No images to pack!");
 	}
 
 	// if we got string, make the cool objects
@@ -26,7 +18,7 @@ export async function* pack(images: string[] | InputFile[], outputs: IAtlasOutpu
 		});
 	}
 
-	console.log("opened all");
+	// todo split by resize if we have a "resize before pack" policy
 
 	// split by tag
 	const imagesByTag = splitByTag(images);
@@ -41,76 +33,85 @@ export async function* pack(images: string[] | InputFile[], outputs: IAtlasOutpu
 			}
 		});
 
-		// make images
-		const fullImages: ISharpImage[] = await Promise.all(
-			inputFiles.map(async (f) => {
-				return {
-					pipeline: sharp(await f.file),
-					alias: [f.filename],
-					tag: f.tag,
-				};
-			})
-		);
-
-		// trim images
-		const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image)));
-
-		// hash images (it's in place, we just wait it.)
-		await Promise.all(packableImages.map((image) => hashImage(image)));
-
-		// deduplicate images but keeping their aliases
-		const imageHashes: Record<string, IPackableSharpImage> = {};
-
-		// deduplicate and store the important information
-		for (const img of packableImages) {
-			if (imageHashes[img.hash]) {
-				// we have seen this hash before, we have a duplicate!
-
-				const existingImageData = imageHashes[img.hash].data;
-				const repeatedImageData = img.data;
-
-				existingImageData.alias.push(...repeatedImageData.alias);
-				existingImageData.originalInfo = { ...existingImageData.originalInfo, ...repeatedImageData.originalInfo };
-			} else {
-				// this is the first occurence!
-				imageHashes[img.hash] = img;
-			}
+		if (inputFiles.length === 0) {
+			throw new Error(`No images to pack with tag: ${tag}`);
 		}
-
-		// back to array.
-		const deduplicatedImages = Object.values(imageHashes);
-
-		const options = {
-			smart: true,
-			pot: true,
-			square: false,
-			allowRotation: true,
-			tag: false,
-			border: 2,
-		}; // Set packing options
-		const packer = new MaxRectsPacker<IPackableSharpImage>(1024, 1024, 2, options); // width, height, padding, options
-
-		packer.addArray(deduplicatedImages); // Start packing with input array
-
-		const bins: Bin<IPackableSharpImage>[] = packer.bins; // Get the bins
-
-		for (const bin of bins) {
-			// 	yield {
-			// 		pipeline: sharp({
-			// 			create: {
-			// 				width: bin.width,
-			// 				height: bin.height,
-			// 				channels: 4,
-			// 				background: { r: 255, g: 0, b: 0, alpha: Math.random() },
-			// 			},
-			// 		}),
-			// 		oversized: false,
-			// 		rects: [],
-			// 		texSize: { width: 0, height: 0 },
-			// 	};
-			packBinAndReleaseMemory;
-			yield packBinAndReleaseMemory(bin);
+		for await (const atlas of pack(inputFiles)) {
+			console.log(atlas);
 		}
+	}
+}
+
+export async function* pack(inputFiles: InputFile[]): AsyncGenerator<IPartialAtlas> {
+	// make sharps
+	const fullImages: ISharpImage[] = await Promise.all(
+		inputFiles.map(async (f) => {
+			return {
+				pipeline: sharp(await f.file),
+				alias: [f.filename],
+				tag: f.tag,
+			};
+		})
+	);
+
+	// trim images
+	const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image)));
+
+	// hash images (it's in place, we just wait it.)
+	await Promise.all(packableImages.map((image) => hashImage(image)));
+
+	// deduplicate images but keeping their aliases
+	const imageHashes: Record<string, IPackableSharpImage> = {};
+
+	// deduplicate and store the important information
+	for (const img of packableImages) {
+		if (imageHashes[img.hash]) {
+			// we have seen this hash before, we have a duplicate!
+
+			const existingImageData = imageHashes[img.hash].data;
+			const repeatedImageData = img.data;
+
+			existingImageData.alias.push(...repeatedImageData.alias);
+			existingImageData.originalInfo = { ...existingImageData.originalInfo, ...repeatedImageData.originalInfo };
+		} else {
+			// this is the first occurence!
+			imageHashes[img.hash] = img;
+		}
+	}
+
+	// back to array.
+	const deduplicatedImages = Object.values(imageHashes);
+
+	const options = {
+		smart: true,
+		pot: true,
+		square: false,
+		allowRotation: true,
+		tag: false,
+		border: 2,
+	}; // Set packing options
+	const packer = new MaxRectsPacker<IPackableSharpImage>(1024, 1024, 2, options); // width, height, padding, options
+
+	packer.addArray(deduplicatedImages); // Start packing with input array
+
+	const bins: Bin<IPackableSharpImage>[] = packer.bins; // Get the bins
+
+	for (const bin of bins) {
+		// 	yield {
+		// 		pipeline: sharp({
+		// 			create: {
+		// 				width: bin.width,
+		// 				height: bin.height,
+		// 				channels: 4,
+		// 				background: { r: 255, g: 0, b: 0, alpha: Math.random() },
+		// 			},
+		// 		}),
+		// 		oversized: false,
+		// 		rects: [],
+		// 		texSize: { width: 0, height: 0 },
+		// 	};
+
+		yield packBinAndReleaseMemory(bin);
 	}
 }
 
