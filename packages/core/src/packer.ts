@@ -6,7 +6,7 @@ import type { IAtlasOutputSettings, InputFile } from "./interfaces/input";
 import type { IAtlas } from "./interfaces/output";
 import type { ISharpImage, IPackableSharpImage, IPartialAtlas } from "./interfaces/pack";
 
-export async function entryPoint(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): Promise<IAtlas> {
+export async function entryPoint(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): Promise<IAtlas[]> {
 	if (!Array.isArray(outputs)) {
 		outputs = [outputs];
 	}
@@ -18,7 +18,8 @@ export async function entryPoint(images: string[] | InputFile[], outputs: IAtlas
 		});
 	}
 
-	// todo split by resize if we have a "resize before pack" policy
+	// To be filled and returned
+	const retval: IAtlas[] = [];
 
 	// split by tag
 	const imagesByTag = splitByTag(images);
@@ -36,13 +37,38 @@ export async function entryPoint(images: string[] | InputFile[], outputs: IAtlas
 		if (inputFiles.length === 0) {
 			throw new Error(`No images to pack with tag: ${tag}`);
 		}
-		for await (const atlas of pack(inputFiles)) {
-			console.log(atlas);
+
+		// Slow pack, resize before
+		const scaleBeforeOutputs = outputs.filter((o) => o.scaleBefore);
+		for (const options of scaleBeforeOutputs) {
+			for await (const atlas of pack(inputFiles, options)) {
+				console.log(atlas);
+				// save using options for this particular output
+				// please remember to fill `retval`
+			}
+		}
+
+		// Faster pack, resize only at the end
+		const scaleAfterOutputs = outputs.filter((o) => o.scaleBefore);
+		if (scaleAfterOutputs.length > 0) {
+			const auxOpt = { ...scaleAfterOutputs[0] };
+			auxOpt.scale = undefined; // we will scale in the future.
+			auxOpt.scaleMethod = undefined; // we will scale in the future.
+			for await (const atlas of pack(inputFiles, auxOpt)) {
+				console.log(atlas);
+				for (const options of scaleAfterOutputs) {
+					// Atlas here will always have scale of 1 !!!
+					// Save using options, resize final atlases and divide the output
+					// please remember to fill `retval`
+				}
+			}
 		}
 	}
+
+	return retval;
 }
 
-export async function* pack(inputFiles: InputFile[]): AsyncGenerator<IPartialAtlas> {
+export async function* pack(inputFiles: InputFile[], options: IAtlasOutputSettings): AsyncGenerator<IPartialAtlas> {
 	// make sharps
 	const fullImages: ISharpImage[] = await Promise.all(
 		inputFiles.map(async (f) => {
@@ -54,8 +80,8 @@ export async function* pack(inputFiles: InputFile[]): AsyncGenerator<IPartialAtl
 		})
 	);
 
-	// trim images
-	const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image)));
+	// trim and maybe resize images
+	const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image, options.scale, options.scaleMethod)));
 
 	// hash images (it's in place, we just wait it.)
 	await Promise.all(packableImages.map((image) => hashImage(image)));
@@ -82,15 +108,15 @@ export async function* pack(inputFiles: InputFile[]): AsyncGenerator<IPartialAtl
 	// back to array.
 	const deduplicatedImages = Object.values(imageHashes);
 
-	const options = {
+	const packingOptions = {
 		smart: true,
-		pot: true,
-		square: false,
-		allowRotation: true,
+		pot: options.powerOfTwo,
+		square: options.sqaure,
+		allowRotation: options.allowRotation,
 		tag: false,
-		border: 2,
+		border: options.padding, // padding from the edge of the atlas
 	}; // Set packing options
-	const packer = new MaxRectsPacker<IPackableSharpImage>(1024, 1024, 2, options); // width, height, padding, options
+	const packer = new MaxRectsPacker<IPackableSharpImage>(options.width, options.height, options.padding, packingOptions); // width, height, padding, options
 
 	packer.addArray(deduplicatedImages); // Start packing with input array
 

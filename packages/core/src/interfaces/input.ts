@@ -1,8 +1,12 @@
+import type { AvifOptions, FormatEnum, GifOptions, HeifOptions, Jp2Options, JpegOptions, JxlOptions, KernelEnum, OutputOptions, PngOptions, TiffOptions, WebpOptions } from "sharp";
 import type { TEMPLATES } from "../templates";
 
 // Describes the object you feed to Klymene
+type ExportFormat = keyof FormatEnum;
 
-type ExportFormat = "png" | "jpg" | "webp" | "avif" | "base64";
+type SharpExportOptions = OutputOptions | JpegOptions | PngOptions | WebpOptions | AvifOptions | HeifOptions | JxlOptions | GifOptions | Jp2Options | TiffOptions;
+
+type ExportFormatObject = Record<ExportFormat, SharpExportOptions>;
 
 // This allows you to pass in images directly from a buffer, but you must associate a filename to it.
 export interface InputFile {
@@ -79,18 +83,11 @@ export interface IAtlasOutputSettings {
 	// Should the packer prepend the folder name to the sprite name?
 	prependFolderName: boolean;
 
-	// What kind of export should sharp use
-	textureFormat: ExportFormat;
+	// What kind of export should sharp use. If more than 1 is set, multiple textures for a single atlas descriptor will be created!
+	textureFormat: ExportFormat | (ExportFormat | ExportFormatObject)[];
 
-	// scale the sprites / the output
+	// scale the output... THIS IS GIVING ME HELL!!!
 	scale: number;
-
-	/**
-	 * Should the packer scale the sprites before packing?
-	 * If true, the sprites will be scaled before packing, which is slower but should result on a better atlas
-	 * If false, the sprites will be scaled after packing, which is faster but might result in a worse atlas (decimal pixels)
-	 */
-	scaleBefore: boolean;
 
 	/**
 	 * How to scale the sprites
@@ -100,7 +97,14 @@ export interface IAtlasOutputSettings {
 	 * "lanczos2" - Lanczos-windowed sinc interpolation, a=2
 	 * "lanczos3" - Lanczos-windowed sinc interpolation, a=3
 	 */
-	scaleMethod: "nearest" | "cubic" | "mitchell" | "lanczos2" | "lanczos3";
+	scaleMethod: keyof KernelEnum;
+
+	/**
+	 * Should we scale before or after packing?
+	 * true - scale before packing, each individual sprite is scaled and then packed.
+	 * false - scale after packing, the entire atlas is scaled.
+	 */
+	scaleBefore: boolean;
 
 	// The template for the descriptor file
 	outputTemplate: keyof typeof TEMPLATES;
@@ -132,8 +136,8 @@ export const defaultInputSettings: IAtlasOutputSettings = {
 	prependFolderName: true,
 	textureFormat: "png",
 	scale: 1,
-	scaleBefore: true,
 	scaleMethod: "nearest",
+	scaleBefore: true,
 	outputTemplate: "jsonhash",
 	url: "https://github.com/miltoncandelero/clymene",
 	version: "1.0.0",

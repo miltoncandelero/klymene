@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
-import sharp, { OverlayOptions } from "sharp";
+import sharp, { KernelEnum, OverlayOptions } from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
 import type { IPackableSharpImage, IPartialAtlas, ISharpImage } from "./interfaces/pack";
 
@@ -14,9 +14,18 @@ export async function hashImage(image: IPackableSharpImage): Promise<IPackableSh
 
 	return image;
 }
+export async function trimAlpha(image: ISharpImage): Promise<IPackableSharpImage>;
+export async function trimAlpha(image: ISharpImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableSharpImage>;
+export async function trimAlpha(image: ISharpImage, scale?: number, kernel?: keyof KernelEnum): Promise<IPackableSharpImage> {
+	const metadata = await image.pipeline.metadata();
+	let { width, height } = metadata;
+	const { hasAlpha } = metadata;
 
-export async function trimAlpha(image: ISharpImage): Promise<IPackableSharpImage> {
-	const { width, height, hasAlpha } = await image.pipeline.metadata();
+	if (scale !== 1 && scale !== undefined) {
+		image.pipeline.resize({ width: Math.round(width * scale), height: Math.round(height * scale), kernel: kernel, fit: "fill" });
+		width = Math.round(width * scale);
+		height = Math.round(height * scale);
+	}
 
 	if (!hasAlpha) {
 		//  No alpha = No trimming!
