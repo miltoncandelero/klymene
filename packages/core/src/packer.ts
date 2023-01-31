@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import fsSync from "fs";
 import { Bin, MaxRectsPacker } from "maxrects-packer";
 import sharp from "sharp";
 import { makeTextureExtension, templatizeFilename } from "./stringUtils";
@@ -6,7 +7,7 @@ import { hashImage, packBinAndReleaseMemory, sharpToBase64, trimAlpha } from "./
 import { defaultInputSettings, IAtlasOutputSettings, InputFile } from "./interfaces/input";
 import type { IAtlas, IMetadata } from "./interfaces/output";
 import type { ISharpImage, IPackableSharpImage, IPartialAtlas } from "./interfaces/pack";
-import { globby } from "globby";
+import glob from "tiny-glob";
 import path from "path";
 import { TEMPLATES } from "./templates";
 import Handlebars from "handlebars";
@@ -24,7 +25,7 @@ export async function makeAtlas(images: string | string[] | InputFile[], outputs
 
 	// if we got string, make the cool objects
 	if (isStringArray(images)) {
-		const expandedPaths = await globby(images);
+		const expandedPaths = [...new Set((await Promise.all(images.map((imageGlob) => glob(imageGlob)))).flat())];
 		console.log(images, expandedPaths);
 		images = expandedPaths.map((imagePath) => {
 			return { filename: imagePath };
@@ -33,10 +34,17 @@ export async function makeAtlas(images: string | string[] | InputFile[], outputs
 
 	const atlases = await makeSharpAtlas(images, outputs);
 	for (const atlas of atlases) {
+		// is the path a thing?
+		if (!fsSync.existsSync(atlas.outputOptions.outputDir)) {
+			await fs.mkdir(atlas.outputOptions.outputDir, { recursive: true });
+		}
+
+		// write descriptor
 		if (Object.keys(TEMPLATES).includes(atlas.outputOptions.outputTemplate)) {
-			// write descriptor
 			const template = TEMPLATES[atlas.outputOptions.outputTemplate];
 			if (!template.templateFunction) {
+				console.log(template);
+				console.log(template.templateString.substring(0, 30));
 				template.templateFunction = Handlebars.compile(template.templateString);
 			}
 
@@ -46,29 +54,32 @@ export async function makeAtlas(images: string | string[] | InputFile[], outputs
 			}
 
 			const descriptorText = template.templateFunction(atlas);
-			await fs.writeFile(`${atlas.metadata.name}.${template.templateExtension}`, descriptorText);
-
-			// write texture
-			if (atlas.outputOptions.textureFormat != "base64") {
-				let textureFormat = atlas.outputOptions.textureFormat;
-				if (typeof textureFormat == "string") {
-					textureFormat = [textureFormat];
-				}
-				if (Array.isArray(textureFormat)) {
-					// array of extensions
-					textureFormat = [...new Set(textureFormat)];
-					for (const ext of textureFormat) {
-						await atlas.pipeline.toFormat(ext).toFile(`${atlas.metadata.imageBaseName}.${ext}`);
-					}
-				} else {
-					// object where keys are extensions and values are sharp configs
-					for (const [ext, options] of Object.entries(textureFormat)) {
-						await atlas.pipeline.toFormat(ext as any, options).toFile(`${atlas.metadata.image}.${ext}`);
-					}
-				}
-			}
+			const descriptorFile = path.join(atlas.outputOptions.outputDir, `${atlas.metadata.name}.${template.templateExtension}`);
+			await fs.writeFile(descriptorFile, descriptorText);
 		} else {
 			// todo custom template file thingy?
+		}
+
+		// write texture
+		if (atlas.outputOptions.textureFormat != "base64") {
+			let textureFormat = atlas.outputOptions.textureFormat;
+			if (typeof textureFormat == "string") {
+				textureFormat = [textureFormat];
+			}
+
+			if (Array.isArray(textureFormat)) {
+				// array of extensions, make a nice object
+				textureFormat = textureFormat.reduce((acc, ext) => {
+					acc[ext] = undefined;
+					return acc;
+				}, {} as Record<string, any>);
+			}
+
+			// object where keys are extensions and values are sharp configs
+			for (const [ext, options] of Object.entries(textureFormat)) {
+				const textureFile = path.join(atlas.outputOptions.outputDir, `${atlas.metadata.imageBaseName}.${ext}`);
+				await atlas.pipeline.toFormat(ext as any, options).toFile(textureFile);
+			}
 		}
 	}
 }

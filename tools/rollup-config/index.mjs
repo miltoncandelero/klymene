@@ -9,12 +9,12 @@ import replace from "@rollup/plugin-replace";
 
 // function that eats arguments and spits rollup configs
 export default (pkg) => {
-	const externalNpm = [].concat(Object.keys(pkg.peerDependencies || {}));
+	const externalNpm = [].concat(Object.keys(pkg.peerDependencies || {})).concat(Object.keys(pkg.dependencies || {}));
 
 	// Plugins for module and browser output
 	const plugins = [
-		// commonjs({ ignoreDynamicRequires: true }),
-		// resolve(),
+		commonjs(),
+		resolve(),
 		json(),
 		string({
 			include: ["**/*.hbs"],

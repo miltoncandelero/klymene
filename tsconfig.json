@@ -1,8 +1,16 @@
 {
+	"ts-node": {
+        "files": true,
+		"require": ["./tools/registerhbs.js"],
+        "compilerOptions": {
+            "esModuleInterop": true
+        }
+    },
 	"compilerOptions": {
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"target": "ESNext",
+        "lib": ["ESNext"],
 		"moduleResolution": "node",
 		"removeComments": true,
 		"sourceMap": true,
@@ -21,17 +29,13 @@
 		"importsNotUsedAsValues": "error",
 	},
 	"include": [
-		"packages/**/*.ts",
+		"packages/**/index.ts",
+		"packages/**/types/*.d.ts",
 	],
 	"exclude": [
 		"node_modules",
-		"**/dist/**",
 		"**/lib/**",
-		"**/compile/**",
-		"**/types/**",
-		"bundles/**/*.d.ts",
 		"**/*.js",
-		"**/*.mjs",
-		"**/*.hbs",
+		"**/*.mjs"
 	]
 }

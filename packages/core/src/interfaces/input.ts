@@ -22,6 +22,9 @@ export interface IAtlasOutputSettings {
 	// templated with this same object and `multipackIndex` index
 	textureFileName: string;
 
+	// Base path for the output files
+	outputDir: string;
+
 	// width of the final atlas
 	width: number;
 
@@ -115,6 +118,7 @@ export interface IAtlasOutputSettings {
 export const defaultInputSettings: IAtlasOutputSettings = {
 	descriptorFileName: "atlas",
 	textureFileName: "atlas",
+	outputDir: "./",
 	width: 2048,
 	height: 2048,
 	oversizedBehaviour: "special",
