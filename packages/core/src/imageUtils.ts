@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
-import sharp, { KernelEnum, OverlayOptions } from "sharp";
+import sharp, { KernelEnum, OverlayOptions, Sharp } from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
 import type { IPackableSharpImage, IPartialAtlas, ISharpImage } from "./interfaces/pack";
 
@@ -10,7 +10,7 @@ export async function hashImage(image: IPackableSharpImage): Promise<IPackableSh
 
 	const hashSum = crypto.createHash("sha1");
 	hashSum.update(await image.data.pipeline.toBuffer());
-	image.hash = hashSum.digest("base64");
+	image.hash = hashSum.digest("base64") + image.tag ?? "";
 
 	return image;
 }
@@ -147,4 +147,9 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 			oversized: oversized,
 		},
 	};
+}
+
+export async function sharpToBase64(pipeline: Sharp): Promise<string> {
+	const imageBuf = await pipeline.png().toBuffer();
+	return `data:image/png;base64,${imageBuf.toString("base64")}`;
 }

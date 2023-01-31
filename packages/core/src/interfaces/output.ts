@@ -1,3 +1,4 @@
+import type { IAtlasOutputSettings } from "./input";
 import type { IPartialAtlas, IPartialMetadata } from "./pack";
 import type { IFrame, ISize, ITrimData } from "./utils";
 
@@ -6,6 +7,7 @@ import type { IFrame, ISize, ITrimData } from "./utils";
 // Final object that we get
 export interface IAtlas extends IPartialAtlas {
 	metadata: IMetadata;
+	outputOptions: IAtlasOutputSettings;
 }
 
 // object for ONE packed sprite
@@ -26,6 +28,7 @@ export interface IPackedSprite {
 // Metadata of the final packed atlas
 export interface IMetadata extends IPartialMetadata {
 	image: string;
+	imageBaseName: string;
 	format: string; // "RGBA8888" ?;
 	scale: number;
 	size: ISize;
@@ -34,4 +37,5 @@ export interface IMetadata extends IPartialMetadata {
 	relatedMultiPacks?: string[];
 	url: string;
 	version: string;
+	name: string;
 }

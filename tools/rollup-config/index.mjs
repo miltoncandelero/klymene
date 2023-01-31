@@ -1,5 +1,6 @@
 import path from "node:path";
 import rename from "@pixi/rollup-plugin-rename-node-modules";
+import json from '@rollup/plugin-json';
 import esbuild from "rollup-plugin-esbuild";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
@@ -8,12 +9,13 @@ import replace from "@rollup/plugin-replace";
 
 // function that eats arguments and spits rollup configs
 export default (pkg) => {
-	const externalNpm = [].concat(Object.keys(pkg.peerDependencies || {})).concat(Object.keys(pkg.dependencies || {}));
+	const externalNpm = [].concat(Object.keys(pkg.peerDependencies || {}));
 
 	// Plugins for module and browser output
 	const plugins = [
-		commonjs(),
-		resolve(),
+		// commonjs({ ignoreDynamicRequires: true }),
+		// resolve(),
+		json(),
 		string({
 			include: ["**/*.hbs"],
 		}),
@@ -21,6 +23,8 @@ export default (pkg) => {
 			// eslint-disable-next-line @typescript-eslint/naming-convention
 			__VERSION__: pkg.version,
 		}),
+		// rename(),
+		esbuild({ target: "ES2020" })
 	];
 
 	const source = pkg.source ?? "src/index.ts";
@@ -30,7 +34,7 @@ export default (pkg) => {
 
 	return [
 		{
-			plugins: [...plugins, rename(), esbuild({ target: "ES2020" })],
+			plugins: plugins,
 			external: externalNpm,
 			input: source,
 			output: [

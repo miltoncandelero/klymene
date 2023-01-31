@@ -1,80 +1,156 @@
 import fs from "fs/promises";
 import { Bin, MaxRectsPacker } from "maxrects-packer";
 import sharp from "sharp";
-import { hashImage, packBinAndReleaseMemory, trimAlpha } from "./imageUtils";
-import type { IAtlasOutputSettings, InputFile } from "./interfaces/input";
-import type { IAtlas } from "./interfaces/output";
+import { makeTextureExtension, templatizeFilename } from "./stringUtils";
+import { hashImage, packBinAndReleaseMemory, sharpToBase64, trimAlpha } from "./imageUtils";
+import { defaultInputSettings, IAtlasOutputSettings, InputFile } from "./interfaces/input";
+import type { IAtlas, IMetadata } from "./interfaces/output";
 import type { ISharpImage, IPackableSharpImage, IPartialAtlas } from "./interfaces/pack";
+import { globby } from "globby";
+import path from "path";
+import { TEMPLATES } from "./templates";
+import Handlebars from "handlebars";
 
-export async function entryPoint(images: string[] | InputFile[], outputs: IAtlasOutputSettings | IAtlasOutputSettings[]): Promise<IAtlas[]> {
-	if (!Array.isArray(outputs)) {
-		outputs = [outputs];
+/**
+ * Writes atlas to disk.
+ * @param images
+ * @param outputs
+ * @returns atlas
+ */
+export async function makeAtlas(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<void> {
+	if (!Array.isArray(images)) {
+		images = [images];
 	}
 
 	// if we got string, make the cool objects
 	if (isStringArray(images)) {
-		images = images.map((imagePath) => {
+		const expandedPaths = await globby(images);
+		console.log(images, expandedPaths);
+		images = expandedPaths.map((imagePath) => {
 			return { filename: imagePath };
 		});
+	}
+
+	const atlases = await makeSharpAtlas(images, outputs);
+	for (const atlas of atlases) {
+		if (Object.keys(TEMPLATES).includes(atlas.outputOptions.outputTemplate)) {
+			// write descriptor
+			const template = TEMPLATES[atlas.outputOptions.outputTemplate];
+			if (!template.templateFunction) {
+				template.templateFunction = Handlebars.compile(template.templateString);
+			}
+
+			// add the extension to the multipacks
+			for (let i = 0; i < atlas.metadata.relatedMultiPacks.length; i++) {
+				atlas.metadata.relatedMultiPacks[i] += `.${template.templateExtension}`;
+			}
+
+			const descriptorText = template.templateFunction(atlas);
+			await fs.writeFile(`${atlas.metadata.name}.${template.templateExtension}`, descriptorText);
+
+			// write texture
+			if (atlas.outputOptions.textureFormat != "base64") {
+				let textureFormat = atlas.outputOptions.textureFormat;
+				if (typeof textureFormat == "string") {
+					textureFormat = [textureFormat];
+				}
+				if (Array.isArray(textureFormat)) {
+					// array of extensions
+					textureFormat = [...new Set(textureFormat)];
+					for (const ext of textureFormat) {
+						await atlas.pipeline.toFormat(ext).toFile(`${atlas.metadata.imageBaseName}.${ext}`);
+					}
+				} else {
+					// object where keys are extensions and values are sharp configs
+					for (const [ext, options] of Object.entries(textureFormat)) {
+						await atlas.pipeline.toFormat(ext as any, options).toFile(`${atlas.metadata.image}.${ext}`);
+					}
+				}
+			}
+		} else {
+			// todo custom template file thingy?
+		}
+	}
+}
+
+/**
+ * Makes a middle of the road atlas. It has the sharp object and it's ready to write to disk but it doesn't.
+ * This is useful if you want to hook into sharp and export yourself.
+ * @param images The images ready to be processed. This can't eat globs.
+ * @param outputs The output settings
+ * @returns sharp atlas
+ */
+export async function makeSharpAtlas(images: InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<IAtlas[]> {
+	if (!Array.isArray(outputs)) {
+		outputs = [outputs];
 	}
 
 	// To be filled and returned
 	const retval: IAtlas[] = [];
 
-	// split by tag
-	const imagesByTag = splitByTag(images);
+	// make sure we have promises
+	const inputFiles = images.map((f) => {
+		if (f.file == undefined) {
+			f.file = fs.readFile(f.filename);
+		}
+		return f;
+	});
 
-	for (const tag in imagesByTag) {
-		const inputFiles = imagesByTag[tag];
-
-		// make sure we have promises
-		inputFiles.forEach((f) => {
-			if (f.file == undefined) {
-				f.file = fs.readFile(f.filename);
-			}
-		});
-
-		if (inputFiles.length === 0) {
-			throw new Error(`No images to pack with tag: ${tag}`);
+	for (let options of outputs) {
+		// if we have only one of the filenames, both are the same filename
+		if (!options.textureFileName && options.descriptorFileName) {
+			options.textureFileName = options.descriptorFileName;
+		}
+		if (!options.descriptorFileName && options.textureFileName) {
+			options.descriptorFileName = options.textureFileName;
 		}
 
-		// Slow pack, resize before
-		const scaleBeforeOutputs = outputs.filter((o) => o.scaleBefore);
-		for (const options of scaleBeforeOutputs) {
-			for await (const atlas of pack(inputFiles, options)) {
-				console.log(atlas);
-				// save using options for this particular output
-				// please remember to fill `retval`
-			}
-		}
+		// loading defaults just in case...
+		options = { ...defaultInputSettings, ...options };
 
-		// Faster pack, resize only at the end
-		const scaleAfterOutputs = outputs.filter((o) => o.scaleBefore);
-		if (scaleAfterOutputs.length > 0) {
-			const auxOpt = { ...scaleAfterOutputs[0] };
-			auxOpt.scale = undefined; // we will scale in the future.
-			auxOpt.scaleMethod = undefined; // we will scale in the future.
-			for await (const atlas of pack(inputFiles, auxOpt)) {
-				console.log(atlas);
-				for (const options of scaleAfterOutputs) {
-					// Atlas here will always have scale of 1 !!!
-					// Save using options, resize final atlases and divide the output
-					// please remember to fill `retval`
-				}
-			}
+		// Now we pack!
+		const atlases = await pack(inputFiles, options as IAtlasOutputSettings);
+
+		// Names for all the linked atlases so we can have them actually linked.
+		const descriptorFileNames = atlases.map((_, i) => templatizeFilename(options.descriptorFileName, { ...options, multiPackIndex: i }));
+		console.log(descriptorFileNames);
+		for (let i = 0; i < atlases.length; i++) {
+			const atlas = atlases[i];
+			const textureFileName = templatizeFilename(options.textureFileName, { ...options, multiPackIndex: i });
+			const metadata: IMetadata = {
+				oversized: atlas.metadata.oversized,
+				size: atlas.metadata.size,
+				format: "RGBA8888",
+				imageBaseName: textureFileName,
+				image: options.textureFormat == "base64" ? await sharpToBase64(atlas.pipeline) : `${textureFileName}.${makeTextureExtension(options.textureFormat)}`,
+				scale: options.scale,
+				url: options.url,
+				version: options.version,
+				relatedMultiPacks: descriptorFileNames.filter((_, j) => j != i), // Everything but my filename
+				name: descriptorFileNames[i], // My file name
+			};
+			retval.push({ metadata: metadata, pipeline: atlas.pipeline, rects: atlas.rects, outputOptions: options as IAtlasOutputSettings });
 		}
 	}
 
 	return retval;
 }
 
-export async function* pack(inputFiles: InputFile[], options: IAtlasOutputSettings): AsyncGenerator<IPartialAtlas> {
-	// make sharps
+export async function pack(inputFiles: InputFile[], options: IAtlasOutputSettings): Promise<IPartialAtlas[]> {
+	// make sharps, clean filenames
 	const fullImages: ISharpImage[] = await Promise.all(
 		inputFiles.map(async (f) => {
+			console.log(f.filename);
+			let spriteAlias = f.filename;
+			if (options.removeFolderName) {
+				spriteAlias = path.basename(spriteAlias);
+			}
+			if (options.removeFileExtension) {
+				spriteAlias = spriteAlias.replace(/\.[^/.]+$/, "");
+			}
 			return {
 				pipeline: sharp(await f.file),
-				alias: [f.filename],
+				alias: [spriteAlias],
 				tag: f.tag,
 			};
 		})
@@ -82,6 +158,8 @@ export async function* pack(inputFiles: InputFile[], options: IAtlasOutputSettin
 
 	// trim and maybe resize images
 	const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image, options.scale, options.scaleMethod)));
+
+	// TODO: Extrude images
 
 	// hash images (it's in place, we just wait it.)
 	await Promise.all(packableImages.map((image) => hashImage(image)));
@@ -113,46 +191,23 @@ export async function* pack(inputFiles: InputFile[], options: IAtlasOutputSettin
 		pot: options.powerOfTwo,
 		square: options.sqaure,
 		allowRotation: options.allowRotation,
-		tag: false,
+		tag: deduplicatedImages.some((i) => i.tag),
 		border: options.padding, // padding from the edge of the atlas
-	}; // Set packing options
-	const packer = new MaxRectsPacker<IPackableSharpImage>(options.width, options.height, options.padding, packingOptions); // width, height, padding, options
+	};
+	const packer = new MaxRectsPacker<IPackableSharpImage>(options.width, options.height, options.padding, packingOptions);
 
 	packer.addArray(deduplicatedImages); // Start packing with input array
 
 	const bins: Bin<IPackableSharpImage>[] = packer.bins; // Get the bins
 
+	const retPromises: Promise<IPartialAtlas>[] = [];
 	for (const bin of bins) {
-		// 	yield {
-		// 		pipeline: sharp({
-		// 			create: {
-		// 				width: bin.width,
-		// 				height: bin.height,
-		// 				channels: 4,
-		// 				background: { r: 255, g: 0, b: 0, alpha: Math.random() },
-		// 			},
-		// 		}),
-		// 		oversized: false,
-		// 		rects: [],
-		// 		texSize: { width: 0, height: 0 },
-		// 	};
-
-		yield packBinAndReleaseMemory(bin);
+		retPromises.push(packBinAndReleaseMemory(bin));
 	}
+
+	return Promise.all(retPromises);
 }
 
 function isStringArray(arr: unknown[]): arr is string[] {
 	return typeof arr[0] === "string";
-}
-
-function splitByTag(images: InputFile[]): Record<string, InputFile[]> {
-	const result: Record<string, InputFile[]> = {};
-	for (const image of images) {
-		const tag = image.tag ?? "";
-		if (!result[tag]) {
-			result[tag] = [];
-		}
-		result[tag].push(image);
-	}
-	return result;
 }

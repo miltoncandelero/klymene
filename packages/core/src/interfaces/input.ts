@@ -2,11 +2,11 @@ import type { AvifOptions, FormatEnum, GifOptions, HeifOptions, Jp2Options, Jpeg
 import type { TEMPLATES } from "../templates";
 
 // Describes the object you feed to Klymene
-type ExportFormat = keyof FormatEnum;
+export type ExportFormat = keyof FormatEnum;
 
-type SharpExportOptions = OutputOptions | JpegOptions | PngOptions | WebpOptions | AvifOptions | HeifOptions | JxlOptions | GifOptions | Jp2Options | TiffOptions;
+export type SharpExportOptions = OutputOptions | JpegOptions | PngOptions | WebpOptions | AvifOptions | HeifOptions | JxlOptions | GifOptions | Jp2Options | TiffOptions;
 
-type ExportFormatObject = Record<ExportFormat, SharpExportOptions>;
+export type ExportFormatObject = Partial<Record<ExportFormat, SharpExportOptions>>;
 
 // This allows you to pass in images directly from a buffer, but you must associate a filename to it.
 export interface InputFile {
@@ -16,10 +16,10 @@ export interface InputFile {
 }
 
 export interface IAtlasOutputSettings {
-	// templated with this same object and `multipack` index
+	// templated with this same object and `multipackIndex` index
 	descriptorFileName: string;
 
-	// templated with this same object and `multipack` index
+	// templated with this same object and `multipackIndex` index
 	textureFileName: string;
 
 	// width of the final atlas
@@ -80,13 +80,16 @@ export interface IAtlasOutputSettings {
 	// Should the packer remove the file extension from the sprite name?
 	removeFileExtension: boolean;
 
-	// Should the packer prepend the folder name to the sprite name?
-	prependFolderName: boolean;
+	// Should the packer remove the folder name to the sprite name?
+	removeFolderName: boolean;
 
 	// What kind of export should sharp use. If more than 1 is set, multiple textures for a single atlas descriptor will be created!
-	textureFormat: ExportFormat | (ExportFormat | ExportFormatObject)[];
+	textureFormat: "base64" | ExportFormat | ExportFormat[] | ExportFormatObject;
 
-	// scale the output... THIS IS GIVING ME HELL!!!
+	/**
+	 * This will scale each sprite before packing them. Useful for making low res atlases for older devices.
+	 * Beware, the atlas dimensions are not scaled, each individual sprite is scaled before packaging!
+	 */
 	scale: number;
 
 	/**
@@ -99,13 +102,6 @@ export interface IAtlasOutputSettings {
 	 */
 	scaleMethod: keyof KernelEnum;
 
-	/**
-	 * Should we scale before or after packing?
-	 * true - scale before packing, each individual sprite is scaled and then packed.
-	 * false - scale after packing, the entire atlas is scaled.
-	 */
-	scaleBefore: boolean;
-
 	// The template for the descriptor file
 	outputTemplate: keyof typeof TEMPLATES;
 
@@ -117,8 +113,8 @@ export interface IAtlasOutputSettings {
 }
 
 export const defaultInputSettings: IAtlasOutputSettings = {
-	descriptorFileName: "atlas-{{multipack}}",
-	textureFileName: "atlas-{{multipack}}",
+	descriptorFileName: "atlas",
+	textureFileName: "atlas",
 	width: 2048,
 	height: 2048,
 	oversizedBehaviour: "special",
@@ -133,12 +129,11 @@ export const defaultInputSettings: IAtlasOutputSettings = {
 	trimMode: "trim",
 	alphaThreshold: 0,
 	removeFileExtension: false,
-	prependFolderName: true,
+	removeFolderName: false,
 	textureFormat: "png",
 	scale: 1,
 	scaleMethod: "nearest",
-	scaleBefore: true,
 	outputTemplate: "jsonhash",
-	url: "https://github.com/miltoncandelero/clymene",
-	version: "1.0.0",
+	url: "https://github.com/miltoncandelero/klymene",
+	version: "__VERSION__", // hopefully replaced by rollup?
 };

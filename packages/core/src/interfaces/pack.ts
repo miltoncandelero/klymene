@@ -26,6 +26,7 @@ export interface IPackableSharpImage {
 
 	rot?: boolean; // did the image get rotated during packaging?
 	oversized?: boolean; // is this rectangle bigger than the atlas?
+	tag?: string; // for the texture packer
 }
 
 // Stores the original size and trim data of the image

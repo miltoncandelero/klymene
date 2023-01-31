@@ -36,13 +36,13 @@
       "w": {{metadata.size.w}},
       "h": {{metadata.size.h}}
     },
-    {{#if config.relatedMultiPacks.lenght}}
+    {{#if metadata.relatedMultiPacks.length}}
     "related_multi_packs":[
-      {{#each config.relatedMultiPacks}}
+      {{#each metadata.relatedMultiPacks}}
         "{{this}}"{{#unless @last}},{{/unless}}
       {{/each}}
     ],
     {{/if}}
-    "scale": {{config.scale}}
+    "scale": {{metadata.scale}}
   }
 }
