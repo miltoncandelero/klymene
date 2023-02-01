@@ -30,6 +30,7 @@
 	},
 	"include": [
 		"packages/**/index.ts",
+		"packages/**/*.test.ts",
 		"packages/**/types/*.d.ts",
 	],
 	"exclude": [

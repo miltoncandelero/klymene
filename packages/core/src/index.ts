@@ -1,13 +1,7 @@
-import { makeAtlas } from "./packer";
+export * from "./packer";
+export * from "./templates";
 
-import jsonhash from "./templates/jsonhash.hbs";
-
-console.log(jsonhash);
-
-console.log("hello world");
-
-makeAtlas(["./test/assets/dino/*/*.png"], {
-	textureFormat: ["webp", "avif", "png"],
-	descriptorFileName: "dino",
-	outputDir: "./test/output/dino",
-}).then(() => console.log("done"));
+export * from "./interfaces/input";
+export * from "./interfaces/output";
+export * from "./interfaces/pack";
+export * from "./interfaces/utils";

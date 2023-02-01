@@ -18,20 +18,7 @@ import Handlebars from "handlebars";
  * @param outputs
  * @returns atlas
  */
-export async function makeAtlas(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<void> {
-	if (!Array.isArray(images)) {
-		images = [images];
-	}
-
-	// if we got string, make the cool objects
-	if (isStringArray(images)) {
-		const expandedPaths = [...new Set((await Promise.all(images.map((imageGlob) => glob(imageGlob)))).flat())];
-		console.log(images, expandedPaths);
-		images = expandedPaths.map((imagePath) => {
-			return { filename: imagePath };
-		});
-	}
-
+export async function makeAtlasFiles(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<void> {
 	const atlases = await makeSharpAtlas(images, outputs);
 	for (const atlas of atlases) {
 		// is the path a thing?
@@ -43,8 +30,6 @@ export async function makeAtlas(images: string | string[] | InputFile[], outputs
 		if (Object.keys(TEMPLATES).includes(atlas.outputOptions.outputTemplate)) {
 			const template = TEMPLATES[atlas.outputOptions.outputTemplate];
 			if (!template.templateFunction) {
-				console.log(template);
-				console.log(template.templateString.substring(0, 30));
 				template.templateFunction = Handlebars.compile(template.templateString);
 			}
 
@@ -91,9 +76,21 @@ export async function makeAtlas(images: string | string[] | InputFile[], outputs
  * @param outputs The output settings
  * @returns sharp atlas
  */
-export async function makeSharpAtlas(images: InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<IAtlas[]> {
+export async function makeSharpAtlas(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<IAtlas[]> {
 	if (!Array.isArray(outputs)) {
 		outputs = [outputs];
+	}
+
+	if (!Array.isArray(images)) {
+		images = [images];
+	}
+
+	// if we got strings, expand the globs, make the cool objects
+	if (isStringArray(images)) {
+		const expandedPaths = [...new Set((await Promise.all(images.map((imageGlob) => glob(imageGlob)))).flat())];
+		images = expandedPaths.map((imagePath) => {
+			return { filename: imagePath };
+		});
 	}
 
 	// To be filled and returned
@@ -124,7 +121,6 @@ export async function makeSharpAtlas(images: InputFile[], outputs: Partial<IAtla
 
 		// Names for all the linked atlases so we can have them actually linked.
 		const descriptorFileNames = atlases.map((_, i) => templatizeFilename(options.descriptorFileName, { ...options, multiPackIndex: i }));
-		console.log(descriptorFileNames);
 		for (let i = 0; i < atlases.length; i++) {
 			const atlas = atlases[i];
 			const textureFileName = templatizeFilename(options.textureFileName, { ...options, multiPackIndex: i });
@@ -151,7 +147,6 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 	// make sharps, clean filenames
 	const fullImages: ISharpImage[] = await Promise.all(
 		inputFiles.map(async (f) => {
-			console.log(f.filename);
 			let spriteAlias = f.filename;
 			if (options.removeFolderName) {
 				spriteAlias = path.basename(spriteAlias);

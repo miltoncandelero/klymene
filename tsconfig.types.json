@@ -3,4 +3,8 @@
 	"compilerOptions": {
 		"removeComments": false,
 	},
+	"include": [
+		"packages/**/index.ts",
+		"packages/**/types/*.d.ts",
+	],
 }

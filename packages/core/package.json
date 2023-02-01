@@ -44,7 +44,8 @@
     "build:bundle": "rollup -c rollup.config.mjs --silent",
     "build:types": "tsc --outDir lib --project ../../tsconfig.types.json",
     "clean": "rimraf ./lib",
-    "test": "jest"
+    "test": "jest",
+    "benchmark": "ts-node ./benchmark/index.ts"
   },
   "dependencies": {
     "maxrects-packer": "^2.7.3",
