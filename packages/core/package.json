@@ -45,7 +45,7 @@
     "build:types": "tsc --outDir lib --project ../../tsconfig.types.json",
     "clean": "rimraf ./lib",
     "test": "jest",
-    "benchmark": "ts-node ./benchmark/index.ts"
+    "benchmark": "node ./benchmark/index.js"
   },
   "dependencies": {
     "maxrects-packer": "^2.7.3",
