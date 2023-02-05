@@ -1,12 +1,11 @@
 import fs from "fs/promises";
 import fsSync from "fs";
 import { Bin, MaxRectsPacker } from "maxrects-packer";
-import sharp from "sharp";
 import { makeTextureExtension, templatizeFilename } from "./stringUtils";
-import { hashImage, packBinAndReleaseMemory, sharpToBase64, trimAlpha } from "./imageUtils";
+import { packBin, sharpToBase64, openMeasureTrimBufferAndHashImage } from "./imageUtils";
 import { defaultInputSettings, IAtlasOutputSettings, InputFile } from "./interfaces/input";
 import type { IAtlas, IMetadata } from "./interfaces/output";
-import type { ISharpImage, IPackableSharpImage, IPartialAtlas } from "./interfaces/pack";
+import type { IImage, IPackableBufferImage, IPartialAtlas } from "./interfaces/pack";
 import glob from "tiny-glob";
 import path from "path";
 import { TEMPLATES } from "./templates";
@@ -96,14 +95,6 @@ export async function makeSharpAtlas(images: string | string[] | InputFile[], ou
 	// To be filled and returned
 	const retval: IAtlas[] = [];
 
-	// make sure we have promises
-	const inputFiles = images.map((f) => {
-		if (f.file == undefined) {
-			f.file = fs.readFile(f.filename);
-		}
-		return f;
-	});
-
 	for (let options of outputs) {
 		// if we have only one of the filenames, both are the same filename
 		if (!options.textureFileName && options.descriptorFileName) {
@@ -117,7 +108,7 @@ export async function makeSharpAtlas(images: string | string[] | InputFile[], ou
 		options = { ...defaultInputSettings, ...options };
 
 		// Now we pack!
-		const atlases = await pack(inputFiles, options as IAtlasOutputSettings);
+		const atlases = await pack(images, options as IAtlasOutputSettings);
 
 		// Names for all the linked atlases so we can have them actually linked.
 		const descriptorFileNames = atlases.map((_, i) => templatizeFilename(options.descriptorFileName, { ...options, multiPackIndex: i }));
@@ -145,8 +136,8 @@ export async function makeSharpAtlas(images: string | string[] | InputFile[], ou
 
 export async function pack(inputFiles: InputFile[], options: IAtlasOutputSettings): Promise<IPartialAtlas[]> {
 	// make sharps, clean filenames
-	const fullImages: ISharpImage[] = await Promise.all(
-		inputFiles.map(async (f) => {
+	const fullImages: IImage[] = await Promise.all(
+		inputFiles.map((f) => {
 			let spriteAlias = f.filename;
 			if (options.removeFolderName) {
 				spriteAlias = path.basename(spriteAlias);
@@ -155,23 +146,18 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 				spriteAlias = spriteAlias.replace(/\.[^/.]+$/, "");
 			}
 			return {
-				pipeline: sharp(await f.file),
+				file: f.file ?? f.filename,
 				alias: [spriteAlias],
 				tag: f.tag,
-			};
+			} as IImage;
 		})
 	);
 
 	// trim and maybe resize images
-	const packableImages = await Promise.all(fullImages.map((image) => trimAlpha(image, options.scale, options.scaleMethod)));
-
-	// TODO: Extrude images
-
-	// hash images (it's in place, we just wait it.)
-	await Promise.all(packableImages.map((image) => hashImage(image)));
+	const packableImages = await Promise.all(fullImages.map((image) => openMeasureTrimBufferAndHashImage(image, options.scale, options.scaleMethod)));
 
 	// deduplicate images but keeping their aliases
-	const imageHashes: Record<string, IPackableSharpImage> = {};
+	const imageHashes: Record<string, IPackableBufferImage> = {};
 
 	// deduplicate and store the important information
 	for (const img of packableImages) {
@@ -200,15 +186,15 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 		tag: deduplicatedImages.some((i) => i.tag),
 		border: options.padding, // padding from the edge of the atlas
 	};
-	const packer = new MaxRectsPacker<IPackableSharpImage>(options.width, options.height, options.padding, packingOptions);
+	const packer = new MaxRectsPacker<IPackableBufferImage>(options.width, options.height, options.padding, packingOptions);
 
 	packer.addArray(deduplicatedImages); // Start packing with input array
 
-	const bins: Bin<IPackableSharpImage>[] = packer.bins; // Get the bins
+	const bins: Bin<IPackableBufferImage>[] = packer.bins; // Get the bins
 
 	const retPromises: Promise<IPartialAtlas>[] = [];
 	for (const bin of bins) {
-		retPromises.push(packBinAndReleaseMemory(bin));
+		retPromises.push(packBin(bin));
 	}
 
 	return Promise.all(retPromises);

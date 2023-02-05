@@ -2,40 +2,52 @@ import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
 import sharp, { KernelEnum, OverlayOptions, Sharp } from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
-import type { IPackableSharpImage, IPartialAtlas, ISharpImage } from "./interfaces/pack";
+import type { IPackableBufferImage, IPartialAtlas, IImage } from "./interfaces/pack";
 
 // Slow, but we need many comparisons and we needed a hash anyway (in place)
-export async function hashImage(image: IPackableSharpImage): Promise<IPackableSharpImage> {
-	image.data.pipeline.raw();
-
+function hashImage(image: IPackableBufferImage): IPackableBufferImage {
 	const hashSum = crypto.createHash("sha1");
-	hashSum.update(await image.data.pipeline.toBuffer());
+	hashSum.update(image.data.file);
 	image.hash = hashSum.digest("base64") + image.tag ?? "";
 
 	return image;
 }
-export async function trimAlpha(image: ISharpImage): Promise<IPackableSharpImage>;
-export async function trimAlpha(image: ISharpImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableSharpImage>;
-export async function trimAlpha(image: ISharpImage, scale?: number, kernel?: keyof KernelEnum): Promise<IPackableSharpImage> {
-	const metadata = await image.pipeline.metadata();
+
+/**
+ * This is quite the monolythic function.
+ * This is by design so I can make a thread that does all of this and make a happy thread pool
+ */
+export async function openMeasureTrimBufferAndHashImage(image: IImage): Promise<IPackableBufferImage>;
+export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableBufferImage>;
+export async function openMeasureTrimBufferAndHashImage(image: IImage, scale?: number, kernel?: keyof KernelEnum): Promise<IPackableBufferImage> {
+	const pipeline: Sharp = sharp(image.file);
+
+	// TODO: Extrude images
+
+	const metadata = await pipeline.metadata();
 	let { width, height } = metadata;
 	const { hasAlpha } = metadata;
 
 	if (scale !== 1 && scale !== undefined) {
-		image.pipeline.resize({ width: Math.round(width * scale), height: Math.round(height * scale), kernel: kernel, fit: "fill" });
+		pipeline.resize({ width: Math.round(width * scale), height: Math.round(height * scale), kernel: kernel, fit: "fill" });
 		width = Math.round(width * scale);
 		height = Math.round(height * scale);
 	}
 
 	if (!hasAlpha) {
 		//  No alpha = No trimming!
+		// however, we add alpha anyway to allow for easier compositiong
+		pipeline.ensureAlpha();
+
 		image.originalInfo = {};
 		image.originalInfo[image.alias[0]] = { originalSize: { w: width, h: height }, trim: { top: 0, bottom: 0, left: 0, right: 0 } };
 
-		return { data: image, height, width, x: 0, y: 0 };
-	}
+		const retval = { data: { ...image, file: await pipeline.raw().toBuffer() }, height, width, x: 0, y: 0 };
 
-	const pipeline = image.pipeline; // Ref for easier code.
+		pipeline.destroy();
+
+		return hashImage(retval);
+	}
 
 	pipeline.trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 1 }); // TODO: Check for colored alpha? maybe not? this allows for sdf atlases?
 	const { info } = await pipeline.toBuffer({ resolveWithObject: true });
@@ -51,16 +63,20 @@ export async function trimAlpha(image: ISharpImage, scale?: number, kernel?: key
 		},
 	};
 
-	return {
-		data: image,
+	const retval = {
+		data: { ...image, file: await pipeline.raw().toBuffer() },
 		height: info.height,
 		width: info.width,
 		x: 0, // needed for maxrect
 		y: 0, // needed for maxrect
 	};
+
+	pipeline.destroy();
+
+	return hashImage(retval);
 }
 
-export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Promise<IPartialAtlas> {
+export async function packBin(bin: Bin<IPackableBufferImage>): Promise<IPartialAtlas> {
 	// Create the pipeline for the final atlas
 	const pipeline = sharp({
 		create: {
@@ -75,11 +91,20 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 	const buffersToCompose = await Promise.all(
 		bin.rects.map(async (r) => {
 			if (r.rot) {
-				r.data.pipeline.rotate(90);
+				r.data.file = await sharp(r.data.file, {
+					raw: {
+						channels: 4,
+						height: r.height,
+						width: r.width,
+					},
+				})
+					.rotate(90)
+					.raw()
+					.toBuffer();
 			}
 
 			const retval: OverlayOptions = {
-				input: await r.data.pipeline.ensureAlpha().raw().toBuffer(),
+				input: r.data.file,
 				raw: {
 					channels: 4,
 					width: r.rot ? r.height : r.width,
@@ -88,10 +113,6 @@ export async function packBinAndReleaseMemory(bin: Bin<IPackableSharpImage>): Pr
 				left: r.x,
 				top: r.y,
 			};
-
-			// free memory!
-			r.data.pipeline.destroy();
-			r.data.pipeline = null;
 
 			return retval;
 		})

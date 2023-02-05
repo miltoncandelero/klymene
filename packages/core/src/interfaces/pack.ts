@@ -4,23 +4,31 @@ import type { ISize, ITrimData } from "./utils";
 
 // Temporal and adapter objects for the packing process
 
-// The first time we load the sharp image
-export interface ISharpImage {
-	pipeline: Sharp; // The image
+export type IImage = IUnloadedImage | IBufferImage;
+
+export interface IUnloadedImage {
+	file: string; // The image
+	alias: string[]; // The list of names this image will be known by (duplicate detection)
+	tag?: string; // Images are forced to the same atlas by tags. tags are never merged.
+	originalInfo?: Record<string, IOriginalInfo>; // Duplicate is done after trimming, we might have different trims
+}
+
+export interface IBufferImage {
+	file: Buffer; // The image
 	alias: string[]; // The list of names this image will be known by (duplicate detection)
 	tag?: string; // Images are forced to the same atlas by tags. tags are never merged.
 	originalInfo?: Record<string, IOriginalInfo>; // Duplicate is done after trimming, we might have different trims
 }
 
 // The sharp image we can feed into the bin packer
-export interface IPackableSharpImage {
+export interface IPackableBufferImage {
 	width: number; // Trimmed size, ready to pack
 	height: number; // Trimmed size, ready to pack
 
 	x: number; // Not actually used before packing, but needed for maxrectpacker
 	y: number; // Not actually used before packing, but needed for maxrectpacker
 
-	data: ISharpImage; // The only kosher way that maxrectpack likes extra data
+	data: IBufferImage; // The only kosher way that maxrectpack likes extra data
 
 	hash?: string; // The hash of the trimmed image used to detect equal images and an UNDOCUMENTED AF feature for maxrectpacker
 

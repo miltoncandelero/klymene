@@ -10,7 +10,7 @@ export type ExportFormatObject = Partial<Record<ExportFormat, SharpExportOptions
 
 // This allows you to pass in images directly from a buffer, but you must associate a filename to it.
 export interface InputFile {
-	file?: Promise<Buffer>;
+	file?: Buffer;
 	filename: string;
 	tag?: string;
 }
