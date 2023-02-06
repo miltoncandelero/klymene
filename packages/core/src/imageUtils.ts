@@ -49,8 +49,8 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale?: n
 		return hashImage(retval);
 	}
 
-	pipeline.trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 1 }); // TODO: Check for colored alpha? maybe not? this allows for sdf atlases?
-	const { info } = await pipeline.toBuffer({ resolveWithObject: true });
+	pipeline.trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 0.1 }); // TODO: Check for colored alpha? maybe not? this allows for sdf atlases?
+	const { info, data } = await pipeline.raw().toBuffer({ resolveWithObject: true });
 
 	image.originalInfo = {};
 	image.originalInfo[image.alias[0]] = {
@@ -64,7 +64,7 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale?: n
 	};
 
 	const retval = {
-		data: { ...image, file: await pipeline.raw().toBuffer() },
+		data: { ...image, file: data },
 		height: info.height,
 		width: info.width,
 		x: 0, // needed for maxrect

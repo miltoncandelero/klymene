@@ -8,43 +8,68 @@ const path = require("path");
 // known bugs: specially sized atlas get broken
 // known bugs: full path names broken in json because \ taken as escape char
 
-const testFiles = "./test/assets/big objects/**/*.png";
-const klymene = async () => {
-	await makeAtlasFiles([testFiles], {
-		width: 2048,
-		height: 2048,
-		textureFormat: "png",
-		descriptorFileName: "out",
-		outputDir: "./test/output/race/klymene",
-	});
-}
+async function bench() {
 
-const freeTexPacker = async () => {
-	// free tex packer doesn't support creating it's own output
+	const testFiles = "./test/assets/many small objects/**/*.png";
+
+	// free tex packer crashes if output dir doesn't exist
 	const outDir = "./test/output/race/freetexpacker"
 	await fs.mkdir(outDir, { recursive: true });
 
-	// free-tex-packer doesn't support globs
+
 	const imagePaths = await glob(testFiles);
-	// free-tex-packer doesn't load it's own file...
-	const images = imagePaths.map((imagePath) => {
+
+	//free tex packer format
+	const freeTexImages = imagePaths.map((imagePath) => {
 		return { path: imagePath, contents: fssync.readFileSync(imagePath) };
 	});
-	const files = await packAsync(images, {
-		width: 2048,
-		height: 2048,
-		exporter: "Pixi",
-		detectIdentical: true,
-		allowRotation:true
-	});
-	await Promise.all(files.map(file => fs.writeFile(path.join(outDir, file.name), file.buffer)))
+
+
+	const klymeneImages = freeTexImages.map(fti => { return { file: fti.contents, filename: fti.path } })
+
+
+	const klymene = async () => {
+		await makeAtlasFiles(klymeneImages, {
+			width: 2048,
+			height: 2048,
+			textureFormat: "png",
+			descriptorFileName: "out",
+			outputDir: "./test/output/race/klymene",
+			allowRotation: true,
+			extrude: 0,
+			padding: 2,
+			powerOfTwo: true,
+			sqaure: false,
+			removeFileExtension: false,
+			removeFolderName: false,
+		});
+	}
+
+	const freeTexPacker = async () => {
+		const files = await packAsync(freeTexImages, {
+			width: 2048,
+			height: 2048,
+			exporter: "Pixi",
+			detectIdentical: true,
+			allowRotation: true,
+			allowTrim: true,
+			fixedSize: false,
+			extrude: 0,
+			padding: 2,
+			powerOfTwo: true,
+			packer: "MaxRectsPacker",
+			packerMethod: "Smart",
+		});
+		await Promise.all(files.map(file => fs.writeFile(path.join(outDir, file.name), file.buffer)))
+	}
+
+	console.time("klymene");
+	await klymene()
+	console.timeEnd("klymene");
+
+	console.time("free-tex-packer");
+	await freeTexPacker()
+	console.timeEnd("free-tex-packer");
 }
 
-console.time("klymene");
-klymene().then(() => {
-	console.timeEnd("klymene");
-	console.time("free-tex-packer");
-	freeTexPacker().then(() => {
-		console.timeEnd("free-tex-packer");
-	});
-});
+bench();

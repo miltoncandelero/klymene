@@ -153,9 +153,12 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 		})
 	);
 
+	console.time("trim");
 	// trim and maybe resize images
 	const packableImages = await Promise.all(fullImages.map((image) => openMeasureTrimBufferAndHashImage(image, options.scale, options.scaleMethod)));
+	console.timeEnd("trim");
 
+	console.time("deduplicate");
 	// deduplicate images but keeping their aliases
 	const imageHashes: Record<string, IPackableBufferImage> = {};
 
@@ -174,7 +177,9 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 			imageHashes[img.hash] = img;
 		}
 	}
+	console.timeEnd("deduplicate");
 
+	console.time("pack");
 	// back to array.
 	const deduplicatedImages = Object.values(imageHashes);
 
@@ -190,14 +195,20 @@ export async function pack(inputFiles: InputFile[], options: IAtlasOutputSetting
 
 	packer.addArray(deduplicatedImages); // Start packing with input array
 
+	console.timeEnd("pack");
+
+	console.time("compose");
+
 	const bins: Bin<IPackableBufferImage>[] = packer.bins; // Get the bins
 
 	const retPromises: Promise<IPartialAtlas>[] = [];
 	for (const bin of bins) {
 		retPromises.push(packBin(bin));
 	}
+	const retval = await Promise.all(retPromises);
+	console.timeEnd("compose");
 
-	return Promise.all(retPromises);
+	return retval;
 }
 
 function isStringArray(arr: unknown[]): arr is string[] {
