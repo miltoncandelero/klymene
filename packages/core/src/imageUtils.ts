@@ -2,7 +2,9 @@ import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
 import sharp, { KernelEnum, OverlayOptions, Sharp } from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
+// import { spawn, Pool, Worker } from "threads";
 import type { IPackableBufferImage, IPartialAtlas, IImage } from "./interfaces/pack";
+import type { ITrimData } from "./interfaces/utils";
 
 // Slow, but we need many comparisons and we needed a hash anyway (in place)
 function hashImage(image: IPackableBufferImage): IPackableBufferImage {
@@ -17,9 +19,7 @@ function hashImage(image: IPackableBufferImage): IPackableBufferImage {
  * This is quite the monolythic function.
  * This is by design so I can make a thread that does all of this and make a happy thread pool
  */
-export async function openMeasureTrimBufferAndHashImage(image: IImage): Promise<IPackableBufferImage>;
-export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableBufferImage>;
-export async function openMeasureTrimBufferAndHashImage(image: IImage, scale?: number, kernel?: keyof KernelEnum): Promise<IPackableBufferImage> {
+export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableBufferImage> {
 	const pipeline: Sharp = sharp(image.file);
 
 	// TODO: Extrude images
@@ -49,24 +49,30 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale?: n
 		return hashImage(retval);
 	}
 
-	pipeline.trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 0.1 }); // TODO: Check for colored alpha? maybe not? this allows for sdf atlases?
-	const { info, data } = await pipeline.raw().toBuffer({ resolveWithObject: true });
+	// even if this is a heavy load, it's faster to keep in the same thread
+	const info = measureTrim(new Uint8Array((await pipeline.raw().toBuffer()).buffer), width, height);
+
+	// actually trim by using extract
+	const data = await pipeline
+		.extract({
+			top: info.top,
+			left: info.left,
+			width: width - info.left - info.right,
+			height: height - info.top - info.bottom,
+		})
+		.raw()
+		.toBuffer();
 
 	image.originalInfo = {};
 	image.originalInfo[image.alias[0]] = {
 		originalSize: { w: width, h: height },
-		trim: {
-			top: info.trimOffsetTop, // Easy, directly out of sharp
-			left: info.trimOffsetLeft, // Easy, directly out of sharp
-			bottom: height - info.trimOffsetTop - info.height, // We start with the full size and subtract until nothing is left.
-			right: width - info.trimOffsetLeft - info.width, // We start with the full size and subtract until nothing is left.
-		},
+		trim: info,
 	};
 
 	const retval = {
 		data: { ...image, file: data },
-		height: info.height,
-		width: info.width,
+		width: width - info.left - info.right,
+		height: height - info.top - info.bottom,
 		x: 0, // needed for maxrect
 		y: 0, // needed for maxrect
 	};
@@ -173,4 +179,80 @@ export async function packBin(bin: Bin<IPackableBufferImage>): Promise<IPartialA
 export async function sharpToBase64(pipeline: Sharp): Promise<string> {
 	const imageBuf = await pipeline.png().toBuffer();
 	return `data:image/png;base64,${imageBuf.toString("base64")}`;
+}
+
+function getAlpha(data: Uint8Array, width: number, x: number, y: number): number {
+	return data[y * (width * 4) + x * 4 + 3];
+}
+
+function getLeftSpace(data: Uint8Array, width: number, height: number, threshold: number = 0): number {
+	let x = 0;
+
+	for (x = 0; x < width; x++) {
+		for (let y = 0; y < height; y++) {
+			if (getAlpha(data, width, x, y) > threshold) {
+				return x;
+			}
+		}
+	}
+
+	return 0;
+}
+
+function getRightSpace(data: Uint8Array, width: number, height: number, threshold: number = 0): number {
+	let x = 0;
+
+	for (x = width - 1; x >= 0; x--) {
+		for (let y = 0; y < height; y++) {
+			if (getAlpha(data, width, x, y) > threshold) {
+				return width - x - 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+function getTopSpace(data: Uint8Array, width: number, height: number, threshold: number = 0): number {
+	let y = 0;
+
+	for (y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			if (getAlpha(data, width, x, y) > threshold) {
+				return y;
+			}
+		}
+	}
+
+	return 0;
+}
+
+function getBottomSpace(data: Uint8Array, width: number, height: number, threshold: number = 0): number {
+	let y = 0;
+
+	for (y = height - 1; y >= 0; y--) {
+		for (let x = 0; x < width; x++) {
+			if (getAlpha(data, width, x, y) > threshold) {
+				return height - y - 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+function measureTrim(data: Uint8Array, width: number, height: number, threshold = 0): ITrimData {
+	const spaces: ITrimData = { left: 0, right: 0, top: 0, bottom: 0 };
+
+	spaces.left = getLeftSpace(data, width, height, threshold);
+
+	if (spaces.left !== width) {
+		spaces.right = getRightSpace(data, width, height, threshold);
+		spaces.top = getTopSpace(data, width, height, threshold);
+		spaces.bottom = getBottomSpace(data, width, height, threshold);
+	} else {
+		spaces.left = 0;
+	}
+
+	return spaces;
 }

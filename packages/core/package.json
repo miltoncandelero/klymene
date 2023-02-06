@@ -48,9 +48,9 @@
     "benchmark": "node ./benchmark/index.js"
   },
   "dependencies": {
+    "handlebars": "^4.7.7",
     "maxrects-packer": "^2.7.3",
     "sharp": "^0.31.3",
-    "handlebars": "^4.7.7",
     "tiny-glob": "^0.2.9"
   }
 }
