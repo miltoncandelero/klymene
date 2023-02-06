@@ -1,5 +1,4 @@
 import path from "node:path";
-import rename from "@pixi/rollup-plugin-rename-node-modules";
 import json from '@rollup/plugin-json';
 import esbuild from "rollup-plugin-esbuild";
 import resolve from "@rollup/plugin-node-resolve";
@@ -14,7 +13,7 @@ export default (pkg) => {
 	// Plugins for module and browser output
 	const plugins = [
 		commonjs(),
-		resolve(),
+		// resolve(),
 		json(),
 		string({
 			include: ["**/*.hbs"],
@@ -23,7 +22,6 @@ export default (pkg) => {
 			// eslint-disable-next-line @typescript-eslint/naming-convention
 			__VERSION__: pkg.version,
 		}),
-		// rename(),
 		esbuild({ target: "ES2020" })
 	];
 
