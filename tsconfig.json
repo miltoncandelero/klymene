@@ -26,7 +26,6 @@
 		"module": "CommonJS",
 		"resolveJsonModule": true,
 		"allowSyntheticDefaultImports": true,
-		"importsNotUsedAsValues": "error",
 	},
 	"include": [
 		"packages/**/index.ts",
