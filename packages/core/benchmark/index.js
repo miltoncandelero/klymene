@@ -29,7 +29,7 @@ async function bench() {
 
 
 	const klymene = async () => {
-		await makeAtlasFiles(klymeneImages, {
+		const files = await makeAtlasFiles(klymeneImages, {
 			width: 2048,
 			height: 2048,
 			allowRotation: true,
@@ -42,20 +42,24 @@ async function bench() {
 		}, [{
 			textureFormat: { id: "avif", lossless: true },
 			descriptorFileName: "out##",
-			outputDir: "./test/output/race/klymene",
+			outputDir: false, // "./test/output/race/klymene",
 		},
 		{
 			textureFormat: "png",
 			descriptorFileName: "out##@0.5x",
-			outputDir: "./test/output/race/klymene",
+			outputDir: false, // "./test/output/race/klymene",
 			scale: 0.5,
 		},
 		{
 			textureFormat: "png",
 			descriptorFileName: "out##@2x",
-			outputDir: "./test/output/race/klymene",
+			outputDir: false, // "./test/output/race/klymene",
 			scale: 2,
 		}]);
+
+		await Promise.all(files.map(file => {
+			return fs.writeFile(path.join("./test/output/race/klymene", file.filename), file.file);
+		}))
 	}
 
 	const freeTexPacker = async () => {
@@ -69,7 +73,7 @@ async function bench() {
 			fixedSize: false,
 			extrude: 0,
 			padding: 2,
-			scale: 0.5,
+			scale: 1,
 			powerOfTwo: true,
 			packer: "MaxRectsPacker",
 			packerMethod: "Smart",
