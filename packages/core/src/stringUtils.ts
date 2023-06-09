@@ -1,27 +1,19 @@
-import type { ExportFormat, ExportFormatObject } from "./interfaces/input";
-import Handlebars from "handlebars";
+import type { ExportFormat, SharpExportOptions } from "./interfaces/input";
 
-export function makeTextureExtension(formats: ExportFormat | ExportFormat[] | ExportFormatObject): string {
-	if (typeof formats === "string") {
-		return formats;
+export function makeTextureExtension(format: ExportFormat | SharpExportOptions): string {
+	if (typeof format === "string") {
+		return format;
 	}
-
-	if (!Array.isArray(formats)) {
-		formats = Object.keys(formats) as ExportFormat[];
-	}
-
-	if (formats.length === 1) {
-		return formats[0];
-	} else {
-		return `{${formats.join(",")}}`;
-	}
+	return format.id;
 }
 
-export function templatizeFilename(filename: string, data: any): string {
-	if (!filename.includes("{{multipackIndex}}")) {
+export function templatizeFilename(filename: string, index: number): string {
+	if (!filename.includes("#")) {
 		// multipack index is pretty much mandatory!
-		filename += "{{#if multiPackIndex}}-{{multiPackIndex}}{{/if}}";
+		filename += "#";
 	}
-	const template = Handlebars.compile(filename);
-	return template(data);
+	// Construct a new RegExp object
+	const regexp = new RegExp(`#+`); // purposefully not global. we only want the first occurence
+	const idx = index.toString().padStart(regexp.exec(filename)[0].length, "0");
+	return filename.replace(regexp, idx);
 }

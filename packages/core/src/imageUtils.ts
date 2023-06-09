@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import type { Bin } from "maxrects-packer";
-import sharp, { KernelEnum, OverlayOptions, Sharp } from "sharp";
+import type { KernelEnum, OverlayOptions, Sharp } from "sharp";
+import sharp from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
 // import { spawn, Pool, Worker } from "threads";
 import type { IPackableBufferImage, IPartialAtlas, IImage } from "./interfaces/pack";

@@ -1,15 +1,18 @@
 import fs from "fs/promises";
 import fsSync from "fs";
-import { Bin, MaxRectsPacker } from "maxrects-packer";
+import type { Bin } from "maxrects-packer";
+import { MaxRectsPacker } from "maxrects-packer";
 import { makeTextureExtension, templatizeFilename } from "./stringUtils";
 import { packBin, sharpToBase64, openMeasureTrimBufferAndHashImage } from "./imageUtils";
-import { defaultInputSettings, IAtlasOutputSettings, InputFile } from "./interfaces/input";
-import type { IAtlas, IMetadata } from "./interfaces/output";
+import type { IAtlasOutputSettings, IFile, IPackingSettings, ITaggedFile } from "./interfaces/input";
+import { defaultPackingSettings, defaultOutputSettings } from "./interfaces/input";
+import type { IAtlas, IPackedSprite } from "./interfaces/output";
 import type { IImage, IPackableBufferImage, IPartialAtlas } from "./interfaces/pack";
 import glob from "tiny-glob";
 import path from "path";
 import { TEMPLATES } from "./templates";
 import Handlebars from "handlebars";
+import sharp from "sharp";
 
 /**
  * Writes atlas to disk.
@@ -17,69 +20,184 @@ import Handlebars from "handlebars";
  * @param outputs
  * @returns atlas
  */
-export async function makeAtlasFiles(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<void> {
-	const atlases = await makeSharpAtlas(images, outputs);
-	for (const atlas of atlases) {
-		// is the path a thing?
-		if (!fsSync.existsSync(atlas.outputOptions.outputDir)) {
-			await fs.mkdir(atlas.outputOptions.outputDir, { recursive: true });
+export async function makeAtlasFiles(
+	images: string | string[] | ITaggedFile[],
+	packerSettings: Partial<IPackingSettings>,
+	outputSettings: Partial<IAtlasOutputSettings[]>
+): Promise<IFile[]> {
+	packerSettings = { ...defaultPackingSettings, ...packerSettings };
+	const atlases = await makeSharpAtlas(images, packerSettings as IPackingSettings);
+
+	const retval: IFile[] = [];
+	for (let currentOutput of outputSettings) {
+		currentOutput = { ...defaultOutputSettings, ...currentOutput };
+		currentOutput.textureFileName = currentOutput.textureFileName ?? currentOutput.descriptorFileName;
+
+		// if we have only one of the filenames, both are the same filename
+		if (!currentOutput.textureFileName && currentOutput.descriptorFileName) {
+			currentOutput.textureFileName = currentOutput.descriptorFileName;
+		}
+		if (!currentOutput.descriptorFileName && currentOutput.textureFileName) {
+			currentOutput.descriptorFileName = currentOutput.textureFileName;
 		}
 
-		// write descriptor
-		if (Object.keys(TEMPLATES).includes(atlas.outputOptions.outputTemplate)) {
-			const template = TEMPLATES[atlas.outputOptions.outputTemplate];
-			if (!template.templateFunction) {
-				template.templateFunction = Handlebars.compile(template.templateString);
+		// Names for all the linked atlases so we can have them actually linked.
+		const descriptorFileNames = atlases.map((_, i) => {
+			const always = currentOutput.appendMultipackIndex == "always";
+			const auto = currentOutput.appendMultipackIndex == "auto" && atlases.length > 1;
+			const isNotFirst = currentOutput.appendMultipackIndex == "ignore-first" && i > 0;
+			if (always || auto || isNotFirst) {
+				return templatizeFilename(currentOutput.descriptorFileName, currentOutput.startingMultipackIndex + i);
+			} else {
+				return currentOutput.descriptorFileName;
+			}
+		});
+		for (let i = 0; i < atlases.length; i++) {
+			const atlas = atlases[i] as IAtlas;
+
+			let textureFileName: string = currentOutput.textureFileName;
+			const always = currentOutput.appendMultipackIndex == "always";
+			const auto = currentOutput.appendMultipackIndex == "auto" && atlases.length > 1;
+			const isNotFirst = currentOutput.appendMultipackIndex == "ignore-first" && i > 0;
+			if (always || auto || isNotFirst) {
+				textureFileName = templatizeFilename(currentOutput.textureFileName, currentOutput.startingMultipackIndex + i);
 			}
 
-			// add the extension to the multipacks
-			for (let i = 0; i < atlas.metadata.relatedMultiPacks.length; i++) {
-				atlas.metadata.relatedMultiPacks[i] += `.${template.templateExtension}`;
-			}
-
-			const descriptorText = template.templateFunction(atlas);
-			const descriptorFile = path.join(atlas.outputOptions.outputDir, `${atlas.metadata.name}.${template.templateExtension}`);
-			await fs.writeFile(descriptorFile, descriptorText);
-		} else {
-			// todo custom template file thingy?
+			atlas.metadata = atlas.metadata ?? ({} as any);
+			atlas.metadata.oversized = atlas.metadata.oversized;
+			atlas.metadata.size = { h: atlas.metadata.size.h, w: atlas.metadata.size.w };
+			atlas.metadata.format = "RGBA8888";
+			atlas.metadata.imageBaseName = textureFileName;
+			atlas.metadata.image = currentOutput.textureFormat == "base64" ? "base64" : `${textureFileName}.${makeTextureExtension(currentOutput.textureFormat)}`;
+			atlas.metadata.scale = packerSettings.scale * currentOutput.scale;
+			atlas.metadata.url = "https://github.com/miltoncandelero/klymene";
+			atlas.metadata.version = "__VERSION__"; // hopefully replaced by rollup
+			atlas.metadata.relatedMultiPacks = descriptorFileNames.filter((_, j) => j != i); // Everything but my filename
+			atlas.metadata.name = descriptorFileNames[i]; // My file name
 		}
 
-		// write texture
-		if (atlas.outputOptions.textureFormat != "base64") {
-			let textureFormat = atlas.outputOptions.textureFormat;
-			if (typeof textureFormat == "string") {
-				textureFormat = [textureFormat];
+		for (const atlas of atlases as IAtlas[]) {
+			// is the path a thing?
+			if (currentOutput.outputDir != false) {
+				if (!fsSync.existsSync(currentOutput.outputDir)) {
+					await fs.mkdir(currentOutput.outputDir, { recursive: true });
+				}
 			}
 
-			if (Array.isArray(textureFormat)) {
-				// array of extensions, make a nice object
-				textureFormat = textureFormat.reduce((acc, ext) => {
-					acc[ext] = undefined;
-					return acc;
-				}, {} as Record<string, any>);
+			const scaledRects: IPackedSprite[] =
+				currentOutput.scale == 1
+					? atlas.rects
+					: atlas.rects.map((rect) => {
+							return {
+								first: rect.first,
+								frame: {
+									h: rect.frame.h * currentOutput.scale,
+									w: rect.frame.w * currentOutput.scale,
+									x: rect.frame.x * currentOutput.scale,
+									y: rect.frame.y * currentOutput.scale,
+								},
+								index: rect.index,
+								trimmed: rect.trimmed,
+								last: rect.last,
+								name: rect.name,
+								oversized: rect.oversized,
+								rotated: rect.rotated,
+								sourceSize: { h: rect.sourceSize.h * currentOutput.scale, w: rect.sourceSize.w * currentOutput.scale },
+								spriteSourceSize: {
+									h: rect.spriteSourceSize.h * currentOutput.scale,
+									w: rect.spriteSourceSize.w * currentOutput.scale,
+									x: rect.spriteSourceSize.x * currentOutput.scale,
+									y: rect.spriteSourceSize.y * currentOutput.scale,
+								},
+								trimmedData: {
+									bottom: rect.trimmedData.bottom * currentOutput.scale,
+									left: rect.trimmedData.left * currentOutput.scale,
+									right: rect.trimmedData.right * currentOutput.scale,
+									top: rect.trimmedData.top * currentOutput.scale,
+								},
+							};
+					  });
+
+			let pipeline = atlas.pipeline;
+
+			if (currentOutput.scale != 1) {
+				const metadata = await pipeline.metadata();
+				const { width, height } = metadata;
+
+				// a simple .clone() doesn't work. no idea why.
+				pipeline = sharp(await atlas.pipeline.raw().toBuffer(), {
+					raw: {
+						channels: 4,
+						height: height,
+						width: width,
+					},
+				}).resize({
+					width: Math.round(width * currentOutput.scale),
+					height: Math.round(height * currentOutput.scale),
+					kernel: currentOutput.scaleMethod,
+					fit: "fill",
+				});
 			}
 
-			// object where keys are extensions and values are sharp configs
-			for (const [ext, options] of Object.entries(textureFormat)) {
-				const textureFile = path.join(atlas.outputOptions.outputDir, `${atlas.metadata.imageBaseName}.${ext}`);
-				await atlas.pipeline.toFormat(ext as any, options).toFile(textureFile);
+			// write texture
+			if (currentOutput.textureFormat != "base64") {
+				const ext = makeTextureExtension(currentOutput.textureFormat);
+				const textureFormat = currentOutput.textureFormat;
+
+				if (currentOutput.outputDir != false) {
+					// object where keys are extensions and values are sharp configs
+					const textureFile = path.join(currentOutput.outputDir, `${atlas.metadata.imageBaseName}.${ext}`);
+					await pipeline.toFormat(ext as any, typeof textureFormat == "string" ? undefined : textureFormat).toFile(textureFile);
+					retval.push({ filename: textureFile });
+				} else {
+					retval.push({
+						filename: `${atlas.metadata.imageBaseName}.${ext}`,
+						file: await pipeline.toFormat(ext as any, typeof textureFormat == "string" ? undefined : textureFormat).toBuffer(),
+					});
+				}
+			}
+
+			// write descriptor
+			if (Object.keys(TEMPLATES).includes(currentOutput.outputTemplate)) {
+				if (currentOutput.textureFormat == "base64") {
+					atlas.metadata.image = await sharpToBase64(pipeline);
+				}
+
+				const template = TEMPLATES[currentOutput.outputTemplate];
+				if (!template.templateFunction) {
+					template.templateFunction = Handlebars.compile(template.templateString);
+				}
+
+				// add the extension to the multipacks
+				for (let i = 0; i < atlas.metadata.relatedMultiPacks.length; i++) {
+					atlas.metadata.relatedMultiPacks[i] += `.${template.templateExtension}`;
+				}
+
+				const descriptorText = template.templateFunction({ ...atlas, rects: scaledRects }); // overwrite the rects with the scaled ones
+				if (currentOutput.outputDir != false) {
+					const descriptorFile = path.join(currentOutput.outputDir, `${atlas.metadata.name}.${template.templateExtension}`);
+					await fs.writeFile(descriptorFile, descriptorText);
+					retval.push({ filename: descriptorFile });
+				} else {
+					retval.push({ filename: `${atlas.metadata.name}.${template.templateExtension}`, file: Buffer.from(descriptorText, "utf-8") });
+				}
+			} else {
+				// todo custom template file thingy?
 			}
 		}
 	}
+
+	return retval;
 }
 
 /**
  * Makes a middle of the road atlas. It has the sharp object and it's ready to write to disk but it doesn't.
  * This is useful if you want to hook into sharp and export yourself.
  * @param images The images ready to be processed. This can't eat globs.
- * @param outputs The output settings
+ * @param settings The output settings
  * @returns sharp atlas
  */
-export async function makeSharpAtlas(images: string | string[] | InputFile[], outputs: Partial<IAtlasOutputSettings> | Partial<IAtlasOutputSettings>[]): Promise<IAtlas[]> {
-	if (!Array.isArray(outputs)) {
-		outputs = [outputs];
-	}
-
+export async function makeSharpAtlas(images: string | string[] | ITaggedFile[], settings: IPackingSettings): Promise<IPartialAtlas[]> {
 	if (!Array.isArray(images)) {
 		images = [images];
 	}
@@ -92,49 +210,14 @@ export async function makeSharpAtlas(images: string | string[] | InputFile[], ou
 		});
 	}
 
-	// To be filled and returned
-	const retval: IAtlas[] = [];
+	// loading defaults just in case...
+	settings = { ...defaultOutputSettings, ...settings };
 
-	for (let options of outputs) {
-		// if we have only one of the filenames, both are the same filename
-		if (!options.textureFileName && options.descriptorFileName) {
-			options.textureFileName = options.descriptorFileName;
-		}
-		if (!options.descriptorFileName && options.textureFileName) {
-			options.descriptorFileName = options.textureFileName;
-		}
-
-		// loading defaults just in case...
-		options = { ...defaultInputSettings, ...options };
-
-		// Now we pack!
-		const atlases = await pack(images, options as IAtlasOutputSettings);
-
-		// Names for all the linked atlases so we can have them actually linked.
-		const descriptorFileNames = atlases.map((_, i) => templatizeFilename(options.descriptorFileName, { ...options, multiPackIndex: i }));
-		for (let i = 0; i < atlases.length; i++) {
-			const atlas = atlases[i];
-			const textureFileName = templatizeFilename(options.textureFileName, { ...options, multiPackIndex: i });
-			const metadata: IMetadata = {
-				oversized: atlas.metadata.oversized,
-				size: atlas.metadata.size,
-				format: "RGBA8888",
-				imageBaseName: textureFileName,
-				image: options.textureFormat == "base64" ? await sharpToBase64(atlas.pipeline) : `${textureFileName}.${makeTextureExtension(options.textureFormat)}`,
-				scale: options.scale,
-				url: options.url,
-				version: options.version,
-				relatedMultiPacks: descriptorFileNames.filter((_, j) => j != i), // Everything but my filename
-				name: descriptorFileNames[i], // My file name
-			};
-			retval.push({ metadata: metadata, pipeline: atlas.pipeline, rects: atlas.rects, outputOptions: options as IAtlasOutputSettings });
-		}
-	}
-
-	return retval;
+	// Now we pack!
+	return await pack(images, settings);
 }
 
-export async function pack(inputFiles: InputFile[], options: IAtlasOutputSettings): Promise<IPartialAtlas[]> {
+export async function pack(inputFiles: ITaggedFile[], options: IPackingSettings): Promise<IPartialAtlas[]> {
 	// make sharps, clean filenames
 	const fullImages: IImage[] = await Promise.all(
 		inputFiles.map((f) => {

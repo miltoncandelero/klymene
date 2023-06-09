@@ -32,9 +32,6 @@ async function bench() {
 		await makeAtlasFiles(klymeneImages, {
 			width: 2048,
 			height: 2048,
-			textureFormat: "png",
-			descriptorFileName: "out",
-			outputDir: "./test/output/race/klymene",
 			allowRotation: true,
 			extrude: 0,
 			padding: 2,
@@ -42,7 +39,23 @@ async function bench() {
 			sqaure: false,
 			removeFileExtension: false,
 			removeFolderName: false,
-		});
+		}, [{
+			textureFormat: { id: "avif", lossless: true },
+			descriptorFileName: "out##",
+			outputDir: "./test/output/race/klymene",
+		},
+		{
+			textureFormat: "png",
+			descriptorFileName: "out##@0.5x",
+			outputDir: "./test/output/race/klymene",
+			scale: 0.5,
+		},
+		{
+			textureFormat: "png",
+			descriptorFileName: "out##@2x",
+			outputDir: "./test/output/race/klymene",
+			scale: 2,
+		}]);
 	}
 
 	const freeTexPacker = async () => {
@@ -56,6 +69,7 @@ async function bench() {
 			fixedSize: false,
 			extrude: 0,
 			padding: 2,
+			scale: 0.5,
 			powerOfTwo: true,
 			packer: "MaxRectsPacker",
 			packerMethod: "Smart",

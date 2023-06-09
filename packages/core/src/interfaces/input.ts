@@ -1,29 +1,33 @@
-import type { AvifOptions, FormatEnum, GifOptions, HeifOptions, Jp2Options, JpegOptions, JxlOptions, KernelEnum, OutputOptions, PngOptions, TiffOptions, WebpOptions } from "sharp";
+import type { AvifOptions, FormatEnum, GifOptions, HeifOptions, Jp2Options, JpegOptions, JxlOptions, KernelEnum, PngOptions, TiffOptions, WebpOptions } from "sharp";
 import type { TEMPLATES } from "../templates";
 
 // Describes the object you feed to Klymene
 export type ExportFormat = keyof FormatEnum;
 
-export type SharpExportOptions = OutputOptions | JpegOptions | PngOptions | WebpOptions | AvifOptions | HeifOptions | JxlOptions | GifOptions | Jp2Options | TiffOptions;
-
-export type ExportFormatObject = Partial<Record<ExportFormat, SharpExportOptions>>;
+export type SharpExportOptions =
+	| (JpegOptions & { id: "jpg" })
+	| (PngOptions & { id: "png" })
+	| (WebpOptions & { id: "webp" })
+	| (AvifOptions & { id: "avif" })
+	| (HeifOptions & { id: "heif" })
+	| (JxlOptions & { id: "jxl" })
+	| (GifOptions & { id: "gif" })
+	| (Jp2Options & { id: "jp2" })
+	| (TiffOptions & { id: "tiff" });
 
 // This allows you to pass in images directly from a buffer, but you must associate a filename to it.
-export interface InputFile {
-	file?: Buffer;
-	filename: string;
+export interface ITaggedFile extends IFile {
 	tag?: string;
 }
 
-export interface IAtlasOutputSettings {
-	// templated with this same object and `multipackIndex` index
-	descriptorFileName: string;
+// represents a file that is ready to be written to disk or passed on to another process.
+export interface IFile {
+	file?: Buffer;
+	filename: string;
+}
 
-	// templated with this same object and `multipackIndex` index
-	textureFileName: string;
-
-	// Base path for the output files
-	outputDir: string;
+export interface IPackingSettings {
+	// # region PackOptions
 
 	// width of the final atlas
 	width: number;
@@ -86,9 +90,6 @@ export interface IAtlasOutputSettings {
 	// Should the packer remove the folder name to the sprite name?
 	removeFolderName: boolean;
 
-	// What kind of export should sharp use. If more than 1 is set, multiple textures for a single atlas descriptor will be created!
-	textureFormat: "base64" | ExportFormat | ExportFormat[] | ExportFormatObject;
-
 	/**
 	 * This will scale each sprite before packing them. Useful for making low res atlases for older devices.
 	 * Beware, the atlas dimensions are not scaled, each individual sprite is scaled before packaging!
@@ -105,20 +106,55 @@ export interface IAtlasOutputSettings {
 	 */
 	scaleMethod: keyof KernelEnum;
 
+	// # end Region
+}
+
+export interface IAtlasOutputSettings {
+	/**
+	 * How should we append the multipack index?
+	 * "always" - always append the multipack index, even if not a multipack.
+	 * "ignore-first" - only append the multipack index if it's a multipack, the first atlas will NOT have an index.
+	 * "auto" - only append the multipack index if it's a multipack, the first atlas WILL have an index.
+	 */
+	appendMultipackIndex: "always" | "ignore-first" | "auto";
+
+	// Mostly used to set up if you want to count from 1 or from 0.
+	startingMultipackIndex: number;
+
+	// use `#` to insert the multipack index. Multiple `#` will be used to pad the index with zeros. ex: `###` would be `001`
+	descriptorFileName: string;
+
+	// use `#` to insert the multipack index. Multiple `#` will be used to pad the index with zeros. ex: `###` would be `001`
+	textureFileName: string;
+
+	// Base path for the output files. false to disable writing to disk and just get the output in buffer form
+	outputDir: string | false;
+
+	// What kind of export should sharp use. If more than 1 is set, multiple textures for a single atlas descriptor will be created!
+	textureFormat: "base64" | ExportFormat | SharpExportOptions;
+
 	// The template for the descriptor file
 	outputTemplate: keyof typeof TEMPLATES;
 
-	// metadata for the descriptor file
-	url: string;
+	/**
+	 * This will scale the resulting file.
+	 * This can end up making decimal pixels!
+	 */
+	scale: number;
 
-	// metadata for the descriptor file
-	version: string;
+	/**
+	 * How to scale the sprites
+	 * "nearest" - Nearest-neighbor interpolation
+	 * "cubic" - Catmull-Rom interpolation
+	 * "mitchell" - Mitchell-Netravali interpolation
+	 * "lanczos2" - Lanczos-windowed sinc interpolation, a=2
+	 * "lanczos3" - Lanczos-windowed sinc interpolation, a=3
+	 */
+	scaleMethod: keyof KernelEnum;
 }
 
-export const defaultInputSettings: IAtlasOutputSettings = {
-	descriptorFileName: "atlas",
-	textureFileName: "atlas",
-	outputDir: "./",
+export const defaultPackingSettings: IPackingSettings = {
+	// pack options
 	width: 2048,
 	height: 2048,
 	oversizedBehaviour: "special",
@@ -134,10 +170,19 @@ export const defaultInputSettings: IAtlasOutputSettings = {
 	alphaThreshold: 0,
 	removeFileExtension: false,
 	removeFolderName: false,
-	textureFormat: "png",
 	scale: 1,
 	scaleMethod: "nearest",
+};
+
+export const defaultOutputSettings: IAtlasOutputSettings = {
+	// output settings
+	appendMultipackIndex: "always",
+	startingMultipackIndex: 1,
+	descriptorFileName: "atlas",
+	textureFileName: undefined,
+	outputDir: "./",
+	textureFormat: "png",
 	outputTemplate: "jsonhash",
-	url: "https://github.com/miltoncandelero/klymene",
-	version: "__VERSION__", // hopefully replaced by rollup?
+	scale: 1,
+	scaleMethod: "nearest",
 };

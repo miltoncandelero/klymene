@@ -1,4 +1,3 @@
-import type { IAtlasOutputSettings } from "./input";
 import type { IPartialAtlas, IPartialMetadata } from "./pack";
 import type { IFrame, ISize, ITrimData } from "./utils";
 
@@ -7,7 +6,6 @@ import type { IFrame, ISize, ITrimData } from "./utils";
 // Final object that we get
 export interface IAtlas extends IPartialAtlas {
 	metadata: IMetadata;
-	outputOptions: IAtlasOutputSettings;
 }
 
 // object for ONE packed sprite

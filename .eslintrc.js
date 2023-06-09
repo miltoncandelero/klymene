@@ -8,10 +8,5 @@ module.exports = {
         "@killabunnies/eslint-config",
         "plugin:jest/recommended",
         "plugin:jest/style"
-    ],
-    rules: {
-        // ...
-        "@typescript-eslint/consistent-type-imports": "error",
-        "@typescript-eslint/no-import-type-side-effects": "error"
-    },
+    ]
 }
