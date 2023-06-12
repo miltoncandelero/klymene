@@ -20,7 +20,13 @@ function hashImage(image: IPackableBufferImage): IPackableBufferImage {
  * This is quite the monolythic function.
  * This is by design so I can make a thread that does all of this and make a happy thread pool
  */
-export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: number, kernel: keyof KernelEnum): Promise<IPackableBufferImage> {
+export async function openMeasureTrimBufferAndHashImage(
+	image: IImage,
+	scale: number,
+	kernel: keyof KernelEnum,
+	extrude: number,
+	extrudeMethod: "copy" | "mirror" | "repeat"
+): Promise<IPackableBufferImage> {
 	const pipeline: Sharp = sharp(image.file);
 
 	// TODO: Extrude images
@@ -38,7 +44,14 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: nu
 	if (!hasAlpha) {
 		//  No alpha = No trimming!
 		// however, we add alpha anyway to allow for easier compositiong
-		pipeline.ensureAlpha();
+		// we also extend here because this is an early exit!
+		pipeline.ensureAlpha().extend({
+			extendWith: extrudeMethod,
+			bottom: extrude,
+			top: extrude,
+			left: extrude,
+			right: extrude,
+		});
 
 		image.originalInfo = {};
 		image.originalInfo[image.alias[0]] = { originalSize: { w: width, h: height }, trim: { top: 0, bottom: 0, left: 0, right: 0 } };
@@ -51,15 +64,22 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: nu
 	}
 
 	// even if this is a heavy load, it's faster to keep in the same thread
-	const info = measureTrim(new Uint8Array((await pipeline.raw().toBuffer()).buffer), width, height);
+	const trimInfo = measureTrim(new Uint8Array((await pipeline.raw().toBuffer()).buffer), width, height);
 
 	// actually trim by using extract
 	const data = await pipeline
 		.extract({
-			top: info.top,
-			left: info.left,
-			width: width - info.left - info.right,
-			height: height - info.top - info.bottom,
+			top: trimInfo.top,
+			left: trimInfo.left,
+			width: width - trimInfo.left - trimInfo.right,
+			height: height - trimInfo.top - trimInfo.bottom,
+		})
+		.extend({
+			extendWith: extrudeMethod,
+			bottom: extrude,
+			top: extrude,
+			left: extrude,
+			right: extrude,
 		})
 		.raw()
 		.toBuffer();
@@ -67,13 +87,13 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: nu
 	image.originalInfo = {};
 	image.originalInfo[image.alias[0]] = {
 		originalSize: { w: width, h: height },
-		trim: info,
+		trim: trimInfo,
 	};
 
 	const retval = {
 		data: { ...image, file: data },
-		width: width - info.left - info.right,
-		height: height - info.top - info.bottom,
+		width: width - trimInfo.left - trimInfo.right,
+		height: height - trimInfo.top - trimInfo.bottom,
 		x: 0, // needed for maxrect
 		y: 0, // needed for maxrect
 	};
@@ -83,7 +103,7 @@ export async function openMeasureTrimBufferAndHashImage(image: IImage, scale: nu
 	return hashImage(retval);
 }
 
-export async function packBin(bin: Bin<IPackableBufferImage>): Promise<IPartialAtlas> {
+export async function packBin(bin: Bin<IPackableBufferImage>, extrude: number): Promise<IPartialAtlas> {
 	// Create the pipeline for the final atlas
 	const pipeline = sharp({
 		create: {
@@ -101,24 +121,23 @@ export async function packBin(bin: Bin<IPackableBufferImage>): Promise<IPartialA
 				r.data.file = await sharp(r.data.file, {
 					raw: {
 						channels: 4,
-						height: r.height,
-						width: r.width,
+						height: r.height + extrude * 2,
+						width: r.width + extrude * 2,
 					},
 				})
 					.rotate(90)
 					.raw()
 					.toBuffer();
 			}
-
 			const retval: OverlayOptions = {
 				input: r.data.file,
 				raw: {
 					channels: 4,
-					width: r.rot ? r.height : r.width,
-					height: r.rot ? r.width : r.height,
+					width: (r.rot ? r.height : r.width) + extrude * 2,
+					height: (r.rot ? r.width : r.height) + extrude * 2,
 				},
-				left: r.x,
-				top: r.y,
+				left: r.x - extrude,
+				top: r.y - extrude,
 			};
 
 			return retval;

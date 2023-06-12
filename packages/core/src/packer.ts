@@ -221,23 +221,33 @@ export async function pack(inputFiles: ITaggedFile[], options: IPackingSettings)
 	// make sharps, clean filenames
 	const fullImages: IImage[] = await Promise.all(
 		inputFiles.map((f) => {
-			let spriteAlias = f.filename;
+			let spriteAlias = path.normalize(f.filename);
 			if (options.removeFolderName) {
 				spriteAlias = path.basename(spriteAlias);
 			}
 			if (options.removeFileExtension) {
 				spriteAlias = spriteAlias.replace(/\.[^/.]+$/, "");
 			}
+			if (options.newRoot) {
+				const normalizedRoot = path.normalize(options.newRoot + String(path.sep));
+				const rootIndex = spriteAlias.indexOf(normalizedRoot);
+				if (rootIndex != -1) {
+					spriteAlias = spriteAlias.substring(rootIndex + normalizedRoot.length);
+				}
+			}
+
 			return {
 				file: f.file ?? f.filename,
-				alias: [spriteAlias],
+				alias: [spriteAlias.replace(/\\/g, "/")],
 				tag: f.tag,
 			} as IImage;
 		})
 	);
 
 	// trim and maybe resize images
-	const packableImages = await Promise.all(fullImages.map((image) => openMeasureTrimBufferAndHashImage(image, options.scale, options.scaleMethod)));
+	const packableImages = await Promise.all(
+		fullImages.map((image) => openMeasureTrimBufferAndHashImage(image, options.scale, options.scaleMethod, options.extrude, options.extrudeMethod))
+	);
 
 	// deduplicate images but keeping their aliases
 	const imageHashes: Record<string, IPackableBufferImage> = {};
@@ -267,9 +277,9 @@ export async function pack(inputFiles: ITaggedFile[], options: IPackingSettings)
 		square: options.sqaure,
 		allowRotation: options.allowRotation,
 		tag: deduplicatedImages.some((i) => i.tag),
-		border: options.padding, // padding from the edge of the atlas
+		border: options.padding + options.extrude, // padding from the edge of the atlas
 	};
-	const packer = new MaxRectsPacker<IPackableBufferImage>(options.width, options.height, options.padding, packingOptions);
+	const packer = new MaxRectsPacker<IPackableBufferImage>(options.width, options.height, options.padding + options.extrude * 2, packingOptions);
 
 	packer.addArray(deduplicatedImages); // Start packing with input array
 
@@ -277,7 +287,7 @@ export async function pack(inputFiles: ITaggedFile[], options: IPackingSettings)
 
 	const retPromises: Promise<IPartialAtlas>[] = [];
 	for (const bin of bins) {
-		retPromises.push(packBin(bin));
+		retPromises.push(packBin(bin, options.extrude));
 	}
 	const retval = await Promise.all(retPromises);
 

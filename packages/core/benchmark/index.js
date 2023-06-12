@@ -10,6 +10,7 @@ const path = require("path");
 
 async function bench() {
 
+	// const testFiles = "./test/assets/dino/**/*.png";
 	const testFiles = "./test/assets/many small objects/**/*.png";
 
 	// free tex packer crashes if output dir doesn't exist
@@ -33,29 +34,44 @@ async function bench() {
 			width: 2048,
 			height: 2048,
 			allowRotation: true,
-			extrude: 0,
+			extrude: 2,
 			padding: 2,
+			trimMode: "trim",
+			alphaThreshold: 0,
 			powerOfTwo: true,
 			sqaure: false,
 			removeFileExtension: false,
 			removeFolderName: false,
-		}, [{
-			textureFormat: { id: "avif", lossless: true },
-			descriptorFileName: "out##",
-			outputDir: false, // "./test/output/race/klymene",
-		},
-		{
-			textureFormat: "png",
-			descriptorFileName: "out##@0.5x",
-			outputDir: false, // "./test/output/race/klymene",
-			scale: 0.5,
-		},
-		{
-			textureFormat: "png",
-			descriptorFileName: "out##@2x",
-			outputDir: false, // "./test/output/race/klymene",
-			scale: 2,
-		}]);
+			newRoot: "many small objects"
+		}, [
+			// 	{
+			// 	textureFormat: { id: "avif", lossless: true, effort: 9, quality: 100 },
+			// 	descriptorFileName: "out##",
+			// 	outputDir: false, // "./test/output/race/klymene",
+			// },
+			{
+				textureFormat: { id: "png", compressionLevel: 0, quality: 100, effort: 1, },
+				descriptorFileName: "out##",
+				outputDir: false, // "./test/output/race/klymene",
+			},
+			// {
+			// 	textureFormat: { id: "webp", quality: 100, lossless: true, smartSubsample: true, effort: 6 },
+			// 	descriptorFileName: "out##",
+			// 	outputDir: false, // "./test/output/race/klymene",
+			// },
+			// {
+			// 	textureFormat: "png",
+			// 	descriptorFileName: "out##@0.5x",
+			// 	outputDir: false, // "./test/output/race/klymene",
+			// 	scale: 0.5,
+			// },
+			// {
+			// 	textureFormat: "png",
+			// 	descriptorFileName: "out##@2x",
+			// 	outputDir: false, // "./test/output/race/klymene",
+			// 	scale: 2,
+			// }
+		]);
 
 		await Promise.all(files.map(file => {
 			return fs.writeFile(path.join("./test/output/race/klymene", file.filename), file.file);
@@ -71,7 +87,7 @@ async function bench() {
 			allowRotation: true,
 			allowTrim: true,
 			fixedSize: false,
-			extrude: 0,
+			extrude: 2,
 			padding: 2,
 			scale: 1,
 			powerOfTwo: true,

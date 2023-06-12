@@ -91,6 +91,12 @@ export interface IPackingSettings {
 	removeFolderName: boolean;
 
 	/**
+	 * finds this path inside the sprite path and removes everything below it.
+	 * eg: newRoot:"many small objects" will convert "test/assets/many small objects/color/tile_0585.png" into "color/tile_0585.png"
+	 */
+	newRoot: string;
+
+	/**
 	 * This will scale each sprite before packing them. Useful for making low res atlases for older devices.
 	 * Beware, the atlas dimensions are not scaled, each individual sprite is scaled before packaging!
 	 */
@@ -170,6 +176,7 @@ export const defaultPackingSettings: IPackingSettings = {
 	alphaThreshold: 0,
 	removeFileExtension: false,
 	removeFolderName: false,
+	newRoot: "",
 	scale: 1,
 	scaleMethod: "nearest",
 };
