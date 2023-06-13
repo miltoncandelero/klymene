@@ -1,58 +1,58 @@
 {
-  "name": "@klymene/core",
-  "version": "0.0.1",
-  "description": "Mother of (texure) Atlas",
-  "main": "./lib/index.js",
-  "module": "./lib/index.mjs",
-  "types": "./lib/index.d.ts",
-  "source": "./src/index.ts",
-  "exports": {
-    ".": {
-      "import": "./lib/index.mjs",
-      "require": "./lib/index.js",
-      "types": "./lib/index.d.ts"
-    }
-  },
-  "files": [
-    "lib/",
-    "docs/",
-    "index.d.ts",
-    "LICENSE",
-    "package.json",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/miltoncandelero/klymene.git"
-  },
-  "bugs": {
-    "url": "https://github.com/miltoncandelero/klymene/issues"
-  },
-  "homepage": "https://miltoncandelero.github.io/klymene/",
-  "keywords": [],
-  "author": "Milton Candelero <miltoncandelero@gmail.com>",
-  "license": "MIT",
-  "devDependencies": {
-    "@klymene/rollup-config": "*"
-  },
-  "scripts": {
-    "start": "ts-node ./src/index.ts",
-    "lint": "run-p lint:*",
-    "lint:src": "eslint src/**/*.ts --fix",
-    "lint:test": "eslint test/**/*.ts --fix",
-    "build": "run-s clean build:bundle build:types",
-    "build:bundle": "rollup -c rollup.config.mjs --silent",
-    "build:types": "tsc --outDir lib --project ./tsconfig.types.json",
-    "clean": "rimraf ./lib",
-    "test": "jest",
-    "benchmark": "node ./benchmark/index.js"
-  },
-  "dependencies": {
-    "globby": "13.1.4",
-    "handlebars": "^4.7.7",
-    "maxrects-packer": "^2.7.3",
-    "sharp": "^0.32.1",
-    "tiny-glob": "^0.2.9"
-  }
+	"name": "@klymene/core",
+	"version": "0.0.1",
+	"description": "Mother of (texure) Atlas",
+	"main": "./lib/index.js",
+	"module": "./lib/index.mjs",
+	"types": "./lib/index.d.ts",
+	"source": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./lib/index.mjs",
+			"require": "./lib/index.js",
+			"types": "./lib/index.d.ts"
+		}
+	},
+	"files": [
+		"lib/",
+		"docs/",
+		"index.d.ts",
+		"LICENSE",
+		"package.json",
+		"README.md",
+		"CHANGELOG.md"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/miltoncandelero/klymene.git"
+	},
+	"bugs": {
+		"url": "https://github.com/miltoncandelero/klymene/issues"
+	},
+	"homepage": "https://miltoncandelero.github.io/klymene/",
+	"keywords": [],
+	"author": "Milton Candelero <miltoncandelero@gmail.com>",
+	"license": "MIT",
+	"devDependencies": {
+		"@klymene/rollup-config": "*"
+	},
+	"scripts": {
+		"start": "ts-node ./src/index.ts",
+		"lint": "run-p lint:*",
+		"lint:src": "eslint src/**/*.ts --fix",
+		"lint:test": "eslint test/**/*.ts --fix",
+		"build": "run-s clean build:bundle build:types",
+		"build:bundle": "rollup -c rollup.config.mjs --silent",
+		"build:types": "tsc --outDir lib --project ./tsconfig.types.json",
+		"clean": "rimraf ./lib",
+		"test": "jest",
+		"benchmark": "node ./benchmark/index.js"
+	},
+	"dependencies": {
+		"globby": "13.1.4",
+		"handlebars": "^4.7.7",
+		"maxrects-packer": "^2.7.3",
+		"sharp": "^0.32.1",
+		"tiny-glob": "^0.2.9"
+	}
 }

@@ -1,42 +1,42 @@
 {
-  "name": "@klymene/assetpack",
-  "version": "0.0.1",
-  "description": "assetpack plugin for @klymene/core",
-  "main": "lib/index.js",
-  "module": "lib/index.mjs",
-  "types": "./lib/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./lib/index.mjs",
-      "require": "./lib/index.js",
-      "types": "./lib/index.d.ts"
-    }
-  },
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/miltoncandelero/klymene.git"
-  },
-  "bugs": {
-    "url": "https://github.com/miltoncandelero/klymene/issues"
-  },
-  "homepage": "https://miltoncandelero.github.io/klymene/",
-  "keywords": [],
-  "author": "Milton Candelero <miltoncandelero@gmail.com>",
-  "license": "MIT",
-  "scripts": {
-    "build": "run-s clean build:bundle build:types",
-    "build:bundle": "rollup -c rollup.config.mjs --silent",
-    "build:types": "tsc --outDir lib --project ./tsconfig.types.json",
-    "clean": "rimraf ./lib"
-  },
-  "devDependencies": {
-    "@klymene/rollup-config": "*",
-    "@assetpack/core": ">=0.0.0"
-  },
-  "dependencies": {
-    "@klymene/core": "*"
-  },
-  "peerDependencies": {
-    "@assetpack/core": ">=0.0.0"
-  }
+	"name": "@klymene/assetpack",
+	"version": "0.0.1",
+	"description": "assetpack plugin for @klymene/core",
+	"main": "lib/index.js",
+	"module": "lib/index.mjs",
+	"types": "./lib/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./lib/index.mjs",
+			"require": "./lib/index.js",
+			"types": "./lib/index.d.ts"
+		}
+	},
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/miltoncandelero/klymene.git"
+	},
+	"bugs": {
+		"url": "https://github.com/miltoncandelero/klymene/issues"
+	},
+	"homepage": "https://miltoncandelero.github.io/klymene/",
+	"keywords": [],
+	"author": "Milton Candelero <miltoncandelero@gmail.com>",
+	"license": "MIT",
+	"scripts": {
+		"build": "run-s clean build:bundle build:types",
+		"build:bundle": "rollup -c rollup.config.mjs --silent",
+		"build:types": "tsc --outDir lib --project ./tsconfig.types.json",
+		"clean": "rimraf ./lib"
+	},
+	"devDependencies": {
+		"@assetpack/core": ">=0.0.0",
+		"@klymene/rollup-config": "*"
+	},
+	"dependencies": {
+		"@klymene/core": "^0.0.1"
+	},
+	"peerDependencies": {
+		"@assetpack/core": ">=0.0.0"
+	}
 }
