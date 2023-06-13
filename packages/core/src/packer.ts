@@ -23,7 +23,7 @@ import sharp from "sharp";
 export async function makeAtlasFiles(
 	images: string | string[] | ITaggedFile[],
 	packerSettings: Partial<IPackingSettings>,
-	outputSettings: Partial<IAtlasOutputSettings[]>
+	outputSettings: Partial<IAtlasOutputSettings>[]
 ): Promise<IFile[]> {
 	packerSettings = { ...defaultPackingSettings, ...packerSettings };
 	const atlases = await makeSharpAtlas(images, packerSettings as IPackingSettings);

@@ -1,7 +1,7 @@
 {
   "name": "@klymene/rollup-config",
   "version": "1.0.0",
-  "description": "ESLint config for pixi-spine",
+  "description": "Rollup config for klymene",
   "main": "index.mjs",
   "type": "module",
   "private": true,
@@ -16,8 +16,6 @@
   "keywords": [],
   "author": "Milton Candelero <miltoncandelero@gmail.com>",
   "license": "MIT",
-  "scripts": {
-    "build": "echo @pixi-spine/rollup-config does not build!"
-  },
+  "scripts": {},
   "dependencies": {}
 }

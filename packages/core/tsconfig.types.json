@@ -1,11 +1,11 @@
 {
-	"extends": "./tsconfig.json",
+	"extends": "../../tsconfig.types.json",
 	"compilerOptions": {
 		"removeComments": false,
 		"emitDeclarationOnly": true
 	},
 	"include": [
-		"packages/**/index.ts",
-		"packages/**/types/*.d.ts",
+		"./src/index.ts",
+		"./src/types/*.d.ts",
 	],
 }
