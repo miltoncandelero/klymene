@@ -12,6 +12,10 @@
 			"types": "./lib/index.d.ts"
 		}
 	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/miltoncandelero/klymene.git"
