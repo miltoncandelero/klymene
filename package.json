@@ -69,6 +69,7 @@
     "build": "lerna run build",
     "start": "lerna run start",
     "test": "lerna run test",
+    "publish": "lerna run publish",
     "benchmark": "lerna run benchmark"
   },
   "workspaces": [
