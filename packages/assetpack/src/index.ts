@@ -4,8 +4,8 @@ import { IAtlasOutputSettings, IFile, IPackingSettings, makeAtlasFiles } from "@
 import fs from "fs/promises";
 
 export interface KlymenePackerOptions extends PluginOptions<"kly"> {
-	packerSettings: Partial<IPackingSettings>;
-	outputSettings: Partial<Omit<IAtlasOutputSettings, "outputDir" | "descriptorFileName" | "textureFileName">>[];
+	packerSettings: Partial<Omit<IPackingSettings, "newRoot">>;
+	outputSettings: Partial<Omit<IAtlasOutputSettings, "outputDir">>[];
 }
 
 export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<KlymenePackerOptions> {
@@ -18,6 +18,7 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 		outputSettings: options.outputSettings ?? [
 			{
 				appendMultipackIndex: "always",
+				descriptorFileName: "",
 				startingMultipackIndex: 1,
 				textureFormat: "png",
 				outputTemplate: "jsonhash",
@@ -45,11 +46,12 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 				...optionOverrides,
 			};
 
-			// force outputDir to be false
+			(opt.packerSettings as IPackingSettings).newRoot = tree.path;
+
 			opt.outputSettings.forEach((o: IAtlasOutputSettings) => {
 				o.outputDir = false;
-				o.textureFileName = undefined;
-				o.descriptorFileName = path.basename(processor.inputToOutput(tree.path));
+				o.textureFileName = o.textureFileName ? path.basename(processor.inputToOutput(tree.path)) + o.textureFileName : undefined;
+				o.descriptorFileName = path.basename(processor.inputToOutput(tree.path)) + o.descriptorFileName;
 			});
 
 			const res = await makeAtlasFiles(globPath, opt.packerSettings, opt.outputSettings as any);
@@ -60,12 +62,13 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 
 				if (o.endsWith(".json")) {
 					// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-					!cacheMap.get(oo) && cacheMap.set(oo, { paths: [], name: processor.trimOutputPath(`${oo}.json`) });
+					if (!cacheMap.get(path.basename(processor.inputToOutput(tree.path)))) {
+						cacheMap.set(path.basename(processor.inputToOutput(tree.path)), { paths: [], name: processor.trimOutputPath(`${oo}.json`) });
+					}
 
-					const d = cacheMap.get(oo)!;
+					const d = cacheMap.get(path.basename(processor.inputToOutput(tree.path)));
 
 					d.paths.push(processor.trimOutputPath(o));
-					cacheMap.set(oo, d);
 				}
 
 				processor.addToTree({
@@ -92,7 +95,6 @@ async function processklyFiles(files: IFile[], output: string, processor: Proces
 	const outputFilePaths = [];
 
 	for (const item of files) {
-		// create a name that injects a template eg _mip
 		const outputDir = output;
 
 		// make sure the folder we save to exists
