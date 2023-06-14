@@ -1,6 +1,6 @@
 {
 	"name": "@klymene/assetpack",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "assetpack plugin for @klymene/core",
 	"main": "lib/index.js",
 	"module": "lib/index.mjs",
@@ -38,7 +38,7 @@
 		"@klymene/rollup-config": "*"
 	},
 	"dependencies": {
-		"@klymene/core": "^0.0.2"
+		"@klymene/core": "^0.0.3"
 	},
 	"peerDependencies": {
 		"@assetpack/core": ">=0.0.0"
