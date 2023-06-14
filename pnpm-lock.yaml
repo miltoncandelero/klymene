@@ -69,7 +69,7 @@ importers:
   packages/assetpack:
     specifiers:
       '@assetpack/core': '>=0.0.0'
-      '@klymene/core': '*'
+      '@klymene/core': ^0.0.1
       '@klymene/rollup-config': '*'
     dependencies:
       '@klymene/core': link:../core
@@ -80,17 +80,17 @@ importers:
   packages/core:
     specifiers:
       '@klymene/rollup-config': '*'
+      fast-glob: ^3.2.12
       globby: 13.1.4
       handlebars: ^4.7.7
       maxrects-packer: ^2.7.3
       sharp: ^0.32.1
-      tiny-glob: ^0.2.9
     dependencies:
+      fast-glob: 3.2.12
       globby: 13.1.4
       handlebars: 4.7.7
       maxrects-packer: 2.7.3
       sharp: 0.32.1
-      tiny-glob: 0.2.9
     devDependencies:
       '@klymene/rollup-config': link:../../tools/rollup-config
 
@@ -4457,10 +4457,6 @@ packages:
       type-fest: 0.20.2
     dev: true
 
-  /globalyzer/0.1.0:
-    resolution: {integrity: sha512-40oNTM9UfG6aBmuKxk/giHn5nQ8RVz/SS4Ir6zgzOv9/qC3kKZ9v4etGTcJbEl/NyVQH7FGU7d+X1egr57Md2Q==}
-    dev: false
-
   /globby/11.1.0:
     resolution: {integrity: sha512-jhIXaOzy1sb8IyocaruWSn1TjmnBVs8Ayhcy83rmxNJ8q2uWKCAj3CnJY+KpGSXCueAPc0i05kVvVKtP1t9S3g==}
     engines: {node: '>=10'}
@@ -4482,10 +4478,6 @@ packages:
       ignore: 5.2.4
       merge2: 1.4.1
       slash: 4.0.0
-    dev: false
-
-  /globrex/0.1.2:
-    resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
     dev: false
 
   /gopd/1.0.1:
@@ -8452,13 +8444,6 @@ packages:
       promise-nodeify: 3.0.1
       proxying-agent: 2.4.0
     dev: true
-
-  /tiny-glob/0.2.9:
-    resolution: {integrity: sha512-g/55ssRPUjShh+xkfx9UPDXqhckHEsHr4Vd9zX55oSdGZc/MD0m3sferOkwWtp98bv+kcVfEHtRJgBVJzelrzg==}
-    dependencies:
-      globalyzer: 0.1.0
-      globrex: 0.1.2
-    dev: false
 
   /tinycolor2/1.5.2:
     resolution: {integrity: sha512-h80m9GPFGbcLzZByXlNSEhp1gf8Dy+VX/2JCGUZsWLo7lV1mnE/XlxGYgRBoMLJh1lIDXP0EMC4RPTjlRaV+Bg==}

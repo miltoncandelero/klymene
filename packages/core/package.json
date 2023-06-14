@@ -53,10 +53,11 @@
 		"benchmark": "node ./benchmark/index.js"
 	},
 	"dependencies": {
+		"fast-glob": "^3.2.12",
 		"globby": "13.1.4",
 		"handlebars": "^4.7.7",
 		"maxrects-packer": "^2.7.3",
-		"sharp": "^0.32.1",
-		"tiny-glob": "^0.2.9"
-	}
+		"sharp": "^0.32.1"
+	},
+	"gitHead": "32509b5b41718ca538087c624565e1d830b4542b"
 }

@@ -5,7 +5,7 @@ import fs from "fs/promises";
 
 export interface KlymenePackerOptions extends PluginOptions<"kly"> {
 	packerSettings: Partial<IPackingSettings>;
-	outputSettings: Partial<IAtlasOutputSettings & { outputDir: false }>[];
+	outputSettings: Partial<Omit<IAtlasOutputSettings, "outputDir" | "descriptorFileName" | "textureFileName">>[];
 }
 
 export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<KlymenePackerOptions> {
@@ -19,9 +19,6 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 			{
 				appendMultipackIndex: "always",
 				startingMultipackIndex: 1,
-				descriptorFileName: "atlas",
-				textureFileName: undefined,
-				outputDir: false,
 				textureFormat: "png",
 				outputTemplate: "jsonhash",
 				scale: 1,
@@ -49,7 +46,11 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 			};
 
 			// force outputDir to be false
-			opt.outputSettings.forEach((o) => (o.outputDir = false));
+			opt.outputSettings.forEach((o: IAtlasOutputSettings) => {
+				o.outputDir = false;
+				o.textureFileName = undefined;
+				o.descriptorFileName = path.basename(processor.inputToOutput(tree.path));
+			});
 
 			const res = await makeAtlasFiles(globPath, opt.packerSettings, opt.outputSettings as any);
 			const out = await processklyFiles(res, processor.inputToOutput(tree.path), processor);

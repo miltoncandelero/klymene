@@ -17,7 +17,7 @@ export interface IBufferImage {
 	file: Buffer; // The image
 	alias: string[]; // The list of names this image will be known by (duplicate detection)
 	tag?: string; // Images are forced to the same atlas by tags. tags are never merged.
-	originalInfo?: Record<string, IOriginalInfo>; // Duplicate is done after trimming, we might have different trims
+	originalInfo: Record<string, IOriginalInfo>; // Duplicate is done after trimming, we might have different trims
 }
 
 // The sharp image we can feed into the bin packer
@@ -30,7 +30,7 @@ export interface IPackableBufferImage {
 
 	data: IBufferImage; // The only kosher way that maxrectpack likes extra data
 
-	hash?: string; // The hash of the trimmed image used to detect equal images and an UNDOCUMENTED AF feature for maxrectpacker
+	hash: string; // The hash of the trimmed image used to detect equal images and an UNDOCUMENTED AF feature for maxrectpacker
 
 	rot?: boolean; // did the image get rotated during packaging?
 	oversized?: boolean; // is this rectangle bigger than the atlas?
@@ -39,8 +39,8 @@ export interface IPackableBufferImage {
 
 // Stores the original size and trim data of the image
 export interface IOriginalInfo {
-	originalSize?: ISize;
-	trim?: ITrimData;
+	originalSize: ISize;
+	trim: ITrimData;
 }
 
 // Partial metadata, we are missing a lot of data...

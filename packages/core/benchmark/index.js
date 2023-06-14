@@ -1,6 +1,6 @@
 const { makeAtlasFiles } = require("../lib/index");
 const { packAsync } = require("free-tex-packer-core");
-const glob = require("tiny-glob");
+const fg = require('fast-glob');
 const fs = require("fs/promises");
 const fssync = require("fs");
 const path = require("path");
@@ -18,7 +18,9 @@ async function bench() {
 	await fs.mkdir(outDir, { recursive: true });
 
 
-	const imagePaths = await glob(testFiles);
+	const imagePaths = await fg(testFiles);
+
+	console.log(imagePaths);
 
 	//free tex packer format
 	const freeTexImages = imagePaths.map((imagePath) => {
@@ -30,7 +32,7 @@ async function bench() {
 
 
 	const klymene = async () => {
-		const files = await makeAtlasFiles(klymeneImages, {
+		const files = await makeAtlasFiles(testFiles, {
 			width: 2048,
 			height: 2048,
 			allowRotation: true,

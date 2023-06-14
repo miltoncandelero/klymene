@@ -8,7 +8,7 @@ import type { IAtlasOutputSettings, IFile, IPackingSettings, ITaggedFile } from 
 import { defaultPackingSettings, defaultOutputSettings } from "./interfaces/input";
 import type { IAtlas, IPackedSprite } from "./interfaces/output";
 import type { IImage, IPackableBufferImage, IPartialAtlas } from "./interfaces/pack";
-import glob from "tiny-glob";
+import fg from "fast-glob";
 import path from "path";
 import { TEMPLATES } from "./templates";
 import Handlebars from "handlebars";
@@ -25,11 +25,12 @@ export async function makeAtlasFiles(
 	packerSettings: Partial<IPackingSettings>,
 	outputSettings: Partial<IAtlasOutputSettings>[]
 ): Promise<IFile[]> {
-	packerSettings = { ...defaultPackingSettings, ...packerSettings };
-	const atlases = await makeSharpAtlas(images, packerSettings as IPackingSettings);
+	const fullPackerSettings: IPackingSettings = { ...defaultPackingSettings, ...packerSettings };
+
+	const atlases = await makeSharpAtlas(images, fullPackerSettings);
 
 	const retval: IFile[] = [];
-	for (let currentOutput of outputSettings) {
+	for (let currentOutput of outputSettings as IAtlasOutputSettings[]) {
 		currentOutput = { ...defaultOutputSettings, ...currentOutput };
 		currentOutput.textureFileName = currentOutput.textureFileName ?? currentOutput.descriptorFileName;
 
@@ -69,7 +70,7 @@ export async function makeAtlasFiles(
 			atlas.metadata.format = "RGBA8888";
 			atlas.metadata.imageBaseName = textureFileName;
 			atlas.metadata.image = currentOutput.textureFormat == "base64" ? "base64" : `${textureFileName}.${makeTextureExtension(currentOutput.textureFormat)}`;
-			atlas.metadata.scale = packerSettings.scale * currentOutput.scale;
+			atlas.metadata.scale = fullPackerSettings.scale * currentOutput.scale;
 			atlas.metadata.url = "https://github.com/miltoncandelero/klymene";
 			atlas.metadata.version = "__VERSION__"; // hopefully replaced by rollup
 			atlas.metadata.relatedMultiPacks = descriptorFileNames.filter((_, j) => j != i); // Everything but my filename
@@ -128,12 +129,12 @@ export async function makeAtlasFiles(
 				pipeline = sharp(await atlas.pipeline.raw().toBuffer(), {
 					raw: {
 						channels: 4,
-						height: height,
-						width: width,
+						height: height ?? 0,
+						width: width ?? 0,
 					},
 				}).resize({
-					width: Math.round(width * currentOutput.scale),
-					height: Math.round(height * currentOutput.scale),
+					width: Math.round((width ?? 0) * currentOutput.scale),
+					height: Math.round((height ?? 0) * currentOutput.scale),
 					kernel: currentOutput.scaleMethod,
 					fit: "fill",
 				});
@@ -169,8 +170,10 @@ export async function makeAtlasFiles(
 				}
 
 				// add the extension to the multipacks
-				for (let i = 0; i < atlas.metadata.relatedMultiPacks.length; i++) {
-					atlas.metadata.relatedMultiPacks[i] += `.${template.templateExtension}`;
+				if (Array.isArray(atlas.metadata.relatedMultiPacks)) {
+					for (let i = 0; i < atlas.metadata.relatedMultiPacks.length; i++) {
+						atlas.metadata.relatedMultiPacks[i] += `.${template.templateExtension}`;
+					}
 				}
 
 				const descriptorText = template.templateFunction({ ...atlas, rects: scaledRects }); // overwrite the rects with the scaled ones
@@ -204,7 +207,7 @@ export async function makeSharpAtlas(images: string | string[] | ITaggedFile[], 
 
 	// if we got strings, expand the globs, make the cool objects
 	if (isStringArray(images)) {
-		const expandedPaths = [...new Set((await Promise.all(images.map((imageGlob) => glob(imageGlob)))).flat())];
+		const expandedPaths = [...new Set((await Promise.all(images.map((imageGlob) => fg(imageGlob)))).flat())];
 		images = expandedPaths.map((imagePath) => {
 			return { filename: imagePath };
 		});

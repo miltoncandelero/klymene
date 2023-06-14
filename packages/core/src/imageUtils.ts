@@ -4,7 +4,7 @@ import type { KernelEnum, OverlayOptions, Sharp } from "sharp";
 import sharp from "sharp";
 import type { IPackedSprite } from "./interfaces/output";
 // import { spawn, Pool, Worker } from "threads";
-import type { IPackableBufferImage, IPartialAtlas, IImage } from "./interfaces/pack";
+import type { IPackableBufferImage, IPartialAtlas, IImage, IOriginalInfo, IBufferImage } from "./interfaces/pack";
 import type { ITrimData } from "./interfaces/utils";
 
 // Slow, but we need many comparisons and we needed a hash anyway (in place)
@@ -29,10 +29,10 @@ export async function openMeasureTrimBufferAndHashImage(
 ): Promise<IPackableBufferImage> {
 	const pipeline: Sharp = sharp(image.file);
 
-	// TODO: Extrude images
-
 	const metadata = await pipeline.metadata();
 	let { width, height } = metadata;
+	width = width ?? 0;
+	height = height ?? 0;
 	const { hasAlpha } = metadata;
 
 	if (scale !== 1 && scale !== undefined) {
@@ -55,8 +55,9 @@ export async function openMeasureTrimBufferAndHashImage(
 
 		image.originalInfo = {};
 		image.originalInfo[image.alias[0]] = { originalSize: { w: width, h: height }, trim: { top: 0, bottom: 0, left: 0, right: 0 } };
+		image.file = await pipeline.raw().toBuffer();
 
-		const retval = { data: { ...image, file: await pipeline.raw().toBuffer() }, height, width, x: 0, y: 0 };
+		const retval: IPackableBufferImage = { data: image as IBufferImage, height, width, x: 0, y: 0, hash: "" };
 
 		pipeline.destroy();
 
@@ -84,18 +85,20 @@ export async function openMeasureTrimBufferAndHashImage(
 		.raw()
 		.toBuffer();
 
-	image.originalInfo = {};
+	image.originalInfo = {} as Record<string, IOriginalInfo>;
 	image.originalInfo[image.alias[0]] = {
 		originalSize: { w: width, h: height },
 		trim: trimInfo,
 	};
+	image.file = data;
 
-	const retval = {
-		data: { ...image, file: data },
+	const retval: IPackableBufferImage = {
+		data: image as IBufferImage,
 		width: width - trimInfo.left - trimInfo.right,
 		height: height - trimInfo.top - trimInfo.bottom,
 		x: 0, // needed for maxrect
 		y: 0, // needed for maxrect
+		hash: "",
 	};
 
 	pipeline.destroy();
@@ -152,14 +155,14 @@ export async function packBin(bin: Bin<IPackableBufferImage>, extrude: number): 
 
 	for (const rect of bin.rects) {
 		for (const imageAlias of rect.data.alias) {
-			oversized = oversized || rect.oversized;
+			oversized = oversized || Boolean(rect.oversized);
 			const originalRectData = rect.data.originalInfo[imageAlias];
 			const packedSprite: IPackedSprite = {
 				frame: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
 				name: imageAlias,
-				rotated: rect.rot,
-				oversized: rect.oversized,
-				trimmed: originalRectData.trim.top !== 0 || originalRectData.trim.bottom !== 0 || originalRectData.trim.left !== 0 || originalRectData.trim.right !== 0,
+				rotated: Boolean(rect.rot),
+				oversized: Boolean(rect.oversized),
+				trimmed: originalRectData.trim?.top !== 0 || originalRectData.trim?.bottom !== 0 || originalRectData.trim?.left !== 0 || originalRectData.trim?.right !== 0,
 				sourceSize: { w: originalRectData.originalSize.w, h: originalRectData.originalSize.h },
 				spriteSourceSize: { x: originalRectData.trim.left, y: originalRectData.trim.top, w: rect.width, h: rect.height },
 				trimmedData: originalRectData.trim,
