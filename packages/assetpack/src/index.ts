@@ -103,12 +103,6 @@ async function processklyFiles(files: IFile[], output: string, processor: Proces
 		// this is where we save the files
 		const outputFile = path.joinSafe(outputDir, item.filename);
 
-		// so one thing FREE texture packer does different is that it either puts the full paths in
-		// or the image name.
-		// we rely on the folder names being preserved in the frame data.
-		// we need to modify the frame names before we save so they are the same
-		// eg raw-assets/image/icons{kly}/cool/image.png -> cool/image.png
-
 		processor.saveToOutput({
 			tree: undefined as any,
 			outputOptions: {
