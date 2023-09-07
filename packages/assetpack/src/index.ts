@@ -42,8 +42,8 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 			const cacheMap = new Map<string, TransformDataFile>();
 
 			const opt: KlymenePackerOptions = {
-				...defaultOptions,
-				...optionOverrides,
+				...JSON.parse(JSON.stringify(defaultOptions)),
+				...JSON.parse(JSON.stringify(optionOverrides)),
 			};
 
 			(opt.packerSettings as IPackingSettings).newRoot = tree.path;
