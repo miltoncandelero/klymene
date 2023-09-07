@@ -4,7 +4,7 @@ import { IAtlasOutputSettings, IFile, IPackingSettings, makeAtlasFiles } from "@
 import fs from "fs/promises";
 
 export interface KlymenePackerOptions extends PluginOptions<"kly"> {
-	packerSettings: Partial<Omit<IPackingSettings, "newRoot">>;
+	packerSettings: Partial<IPackingSettings>;
 	outputSettings: Partial<Omit<IAtlasOutputSettings, "outputDir">>[];
 }
 
@@ -41,12 +41,12 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 
 			const cacheMap = new Map<string, TransformDataFile>();
 
+			(defaultOptions.packerSettings as IPackingSettings).newRoot = tree.path;
+
 			const opt: KlymenePackerOptions = {
 				...JSON.parse(JSON.stringify(defaultOptions)),
 				...JSON.parse(JSON.stringify(optionOverrides)),
 			};
-
-			(opt.packerSettings as IPackingSettings).newRoot = tree.path;
 
 			opt.outputSettings.forEach((o: IAtlasOutputSettings) => {
 				o.outputDir = false;
