@@ -41,12 +41,12 @@ export function klymenePacker(options?: Partial<KlymenePackerOptions>): Plugin<K
 
 			const cacheMap = new Map<string, TransformDataFile>();
 
-			(defaultOptions.packerSettings as IPackingSettings).newRoot = tree.path;
-
 			const opt: KlymenePackerOptions = {
 				...JSON.parse(JSON.stringify(defaultOptions)),
 				...JSON.parse(JSON.stringify(optionOverrides)),
 			};
+
+			opt.packerSettings.newRoot = opt.packerSettings.newRoot ?? tree.path;
 
 			opt.outputSettings.forEach((o: IAtlasOutputSettings) => {
 				o.outputDir = false;
